@@ -1,0 +1,63 @@
+{
+  "id": "/",
+  "name": "PequeCare - Control Pediátrico y Crecimiento OMS",
+  "short_name": "PequeCare",
+  "description": "App para el seguimiento integral de la salud, crecimiento con curvas OMS, sueño, nutrición, tratamientos médicos y Google Drive para niñas mayores de 3 años.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#e11d48",
+  "background_color": "#ffffff",
+  "lang": "es",
+  "categories": ["health", "medical", "lifestyle", "education"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar Crecimiento",
+      "short_name": "Crecimiento",
+      "description": "Registrar peso, altura y ver curva OMS",
+      "url": "/?action=growth",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Registrar Medicamento",
+      "short_name": "Medicamento",
+      "description": "Registrar dosis y recordatorios",
+      "url": "/?action=medication",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Registrar Temperatura",
+      "short_name": "Temperatura",
+      "description": "Control de fiebre y curva térmica",
+      "url": "/?action=temp",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ]
+}

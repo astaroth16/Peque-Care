@@ -1,0 +1,6 @@
+{
+  "name": "PequeCare - Control Pediátrico y Crecimiento OMS",
+  "description": "App Android para el seguimiento integral de la salud, crecimiento con curvas OMS, sueño, nutrición, medicamentos e informes médicos de niñas mayores de 3 años.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
