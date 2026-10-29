@@ -21,9 +21,10 @@ interface OnboardingScreenProps {
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const { updateProfile, resetToSampleData } = useApp();
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [birthDate, setBirthDate] = useState('2023-04-15');
+  const [birthDate, setBirthDate] = useState(todayStr);
   const [gender, setGender] = useState<'female' | 'male'>('female');
   const [bloodType, setBloodType] = useState('A+');
   const [allergies, setAllergies] = useState('');
@@ -269,7 +270,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>O continuar con datos de muestra (Sofía, 3 años y medio)</span>
+              <span>O comenzar con base de datos en blanco</span>
             </button>
           </div>
         </form>

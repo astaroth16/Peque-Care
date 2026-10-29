@@ -255,25 +255,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<InAppNotification[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.NOTIFS);
     if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: 'notif-1',
-        type: 'medicamento',
-        title: 'Próxima dosis programada',
-        message: 'Ibuprofeno Suspensión (6.5 ml) a las 14:30 hs.',
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        urgent: true,
-      },
-      {
-        id: 'notif-2',
-        type: 'consulta',
-        title: 'Turno Médico Próximo',
-        message: 'Tamizaje Visual Infantil en Clínica Santa Lucía el 10 de Noviembre.',
-        timestamp: new Date().toISOString(),
-        isRead: false,
-      },
-    ];
+    return [];
   });
 
   // Google Sync State
