@@ -268,38 +268,38 @@ fun GrowthCurveCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ShowChart,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Curva de Crecimiento OMS",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ShowChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Curvas de Crecimiento OMS",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-                // Selector de Métrica
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(
-                        selected = selectedMetric == ChartMetric.PESO,
-                        onClick = { onMetricChanged(ChartMetric.PESO) },
-                        label = { Text("⚖️ Peso") }
-                    )
-                    FilterChip(
-                        selected = selectedMetric == ChartMetric.TALLA,
-                        onClick = { onMetricChanged(ChartMetric.TALLA) },
-                        label = { Text("📏 Talla") }
-                    )
-                }
+            // Pestañas responsivas destacadas para cambiar entre Curva de Peso y Curva de Estatura
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedMetric == ChartMetric.PESO,
+                    onClick = { onMetricChanged(ChartMetric.PESO) },
+                    label = { Text("Curva de Peso (kg)", fontWeight = if (selectedMetric == ChartMetric.PESO) FontWeight.Bold else FontWeight.Normal) },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = selectedMetric == ChartMetric.TALLA,
+                    onClick = { onMetricChanged(ChartMetric.TALLA) },
+                    label = { Text("Curva de Estatura (cm)", fontWeight = if (selectedMetric == ChartMetric.TALLA) FontWeight.Bold else FontWeight.Normal) },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             // Gráfico Canvas
@@ -309,18 +309,18 @@ fun GrowthCurveCard(
                 metric = selectedMetric,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(230.dp)
             )
 
-            // Leyenda visual
+            // Leyenda visual responsiva sin emojis excesivos
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(color = Color(0xFFE11D48), text = "👶 Registros del Niño")
-                LegendItem(color = Color(0xFF10B981), text = "🟢 Mediana OMS (P50)")
-                LegendItem(color = Color(0xFFFBBF24), text = "🟡 Rango OMS (P3-P97)")
+                LegendItem(color = Color(0xFFE11D48), text = "Mediciones")
+                LegendItem(color = Color(0xFF10B981), text = "Mediana (P50)")
+                LegendItem(color = Color(0xFFFBBF24), text = "Rango normal (P3-P97)")
             }
         }
     }
@@ -330,11 +330,11 @@ fun GrowthCurveCard(
 private fun LegendItem(color: Color, text: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
+                .size(8.dp)
                 .background(color, CircleShape)
         )
         Text(
@@ -675,29 +675,33 @@ private fun GrowthRecordCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                val formattedWeight = String.format(java.util.Locale.US, "%.3f", record.weightKg).trimEnd('0').trimEnd('.')
                 MetricItem(
-                    label = "⚖️ Peso",
-                    value = "${record.weightKg} kg",
-                    percentile = "Percentil ${record.weightPercentile}"
+                    label = "Peso",
+                    value = "$formattedWeight kg",
+                    percentile = "P${record.weightPercentile}",
+                    modifier = Modifier.weight(1f)
                 )
                 MetricItem(
-                    label = "📏 Tamaño / Talla",
+                    label = "Talla",
                     value = "${record.heightCm} cm",
-                    percentile = "Percentil ${record.heightPercentile}"
+                    percentile = "P${record.heightPercentile}",
+                    modifier = Modifier.weight(1f)
                 )
                 MetricItem(
-                    label = "📊 IMC",
-                    value = "${record.bmi}",
-                    percentile = "Percentil ${record.bmiPercentile}"
+                    label = "IMC",
+                    value = "${record.bmi} kg/m²",
+                    percentile = "P${record.bmiPercentile} • ${record.bmiStatus}",
+                    modifier = Modifier.weight(1.2f)
                 )
             }
 
             if (!record.notes.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "📝 Nota: ${record.notes}",
+                    text = "Nota: ${record.notes}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -707,8 +711,8 @@ private fun GrowthRecordCard(
 }
 
 @Composable
-private fun MetricItem(label: String, value: String, percentile: String) {
-    Column {
+private fun MetricItem(label: String, value: String, percentile: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(text = percentile, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)

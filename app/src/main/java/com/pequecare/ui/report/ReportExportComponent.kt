@@ -310,10 +310,27 @@ fun ReportExportComponent(
                         fontWeight = FontWeight.Bold
                     )
 
+                    // Helper lambda para generar el PDF con estilo personalizado en Arial
+                    val generateCustomPdf = {
+                        ReportExporter.generateStyledPdf(
+                            context = context,
+                            profile = profile,
+                            startDate = startDateStr,
+                            endDate = endDateStr,
+                            growthRecords = filteredGrowth,
+                            sleepRecords = filteredSleep,
+                            mealRecords = filteredMeals,
+                            activityRecords = filteredActivities,
+                            appointments = filteredAppointments,
+                            temperatures = filteredTemperatures,
+                            treatments = allTreatments
+                        )
+                    }
+
                     // Botón WhatsApp PDF
                     Button(
                         onClick = {
-                            val pdfUri = ReportExporter.generatePdfFile(context, reportContent)
+                            val pdfUri = generateCustomPdf()
                             ReportExporter.sharePdfViaWhatsApp(context, pdfUri)
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -325,7 +342,7 @@ fun ReportExportComponent(
                         Text(text = "📲 Enviar PDF por WhatsApp", fontWeight = FontWeight.Bold)
                     }
 
-                    // Botón WhatsApp Texto
+                    // Botón WhatsApp Texto (Texto Plano)
                     Button(
                         onClick = {
                             ReportExporter.shareViaWhatsApp(context, reportContent)
@@ -342,7 +359,7 @@ fun ReportExportComponent(
                     // Botón Email con PDF
                     Button(
                         onClick = {
-                            val pdfUri = ReportExporter.generatePdfFile(context, reportContent)
+                            val pdfUri = generateCustomPdf()
                             ReportExporter.shareViaEmail(
                                 context = context,
                                 subject = "Reporte Pediátrico - ${profile?.name ?: "PequeCare"}",
@@ -362,7 +379,7 @@ fun ReportExportComponent(
                     // Botón Selector General
                     OutlinedButton(
                         onClick = {
-                            val pdfUri = ReportExporter.generatePdfFile(context, reportContent)
+                            val pdfUri = generateCustomPdf()
                             ReportExporter.shareGeneralFile(context, pdfUri, "application/pdf", "Compartir Reporte Pediátrico")
                         },
                         modifier = Modifier.fillMaxWidth(),

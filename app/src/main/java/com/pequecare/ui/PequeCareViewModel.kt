@@ -84,16 +84,6 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val todayDate = LocalDate.now().toString()
-
-    val todayWaterGlasses: StateFlow<Int> = childProfile.flatMapLatest { profile ->
-        if (profile != null) {
-            mealDao.getTodayWater(profile.id, todayDate).map { it ?: 0 }
-        } else {
-            flowOf(0)
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
     private val prefs = application.getSharedPreferences("pequecare_prefs", android.content.Context.MODE_PRIVATE)
     private val _isDarkTheme = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
@@ -258,21 +248,27 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // --- MEDICAMENTOS / TRATAMIENTOS ---
     fun addMedication(
         name: String,
         formula: String,
         dosage: String,
-        frequencyHours: Int,
-        durationDays: Int,
+        startDate: String = LocalDate.now().toString(),
+        startTime: String = "08:00",
+        frequencyHours: Int = 8,
+        frequencyMinutes: Int = 0,
+        durationDays: Int = 7,
+        status: String = "ACTIVO",
         notes: String? = null
-    ) {
+    ): String {
+        val newId = UUID.randomUUID().toString()
         viewModelScope.launch {
             val profile = childProfile.value ?: return@launch
-            val start = LocalDate.now()
+            val start = try { LocalDate.parse(startDate) } catch (_: Exception) { LocalDate.now() }
             val end = start.plusDays(durationDays.toLong())
 
             val med = MedicationTreatmentEntity(
-                id = UUID.randomUUID().toString(),
+                id = newId,
                 childId = profile.id,
                 name = name.trim(),
                 formula = formula.trim(),
@@ -281,17 +277,75 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 unit = "ml",
                 purpose = "Tratamiento pediátrico",
                 frequencyHours = frequencyHours,
+                frequencyMinutes = frequencyMinutes,
                 startDate = start.toString(),
+                startTime = startTime.trim(),
                 endDate = end.toString(),
                 durationDays = durationDays,
-                status = "ACTIVO",
-                isActive = true,
+                status = status.trim(),
+                isActive = (status.trim().uppercase() == "ACTIVO"),
                 notes = notes?.trim()
             )
             medicationDao.insert(med)
         }
+        return newId
     }
 
+    fun updateMedication(
+        med: MedicationTreatmentEntity,
+        name: String,
+        formula: String,
+        dosage: String,
+        startDate: String = med.startDate,
+        startTime: String = med.startTime,
+        frequencyHours: Int = med.frequencyHours,
+        frequencyMinutes: Int = med.frequencyMinutes,
+        durationDays: Int = med.durationDays,
+        status: String = med.status,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val start = try { LocalDate.parse(startDate) } catch (_: Exception) { LocalDate.now() }
+            val end = start.plusDays(durationDays.toLong())
+            val updated = med.copy(
+                name = name.trim(),
+                formula = formula.trim(),
+                dosage = dosage.trim(),
+                startDate = start.toString(),
+                startTime = startTime.trim(),
+                endDate = end.toString(),
+                frequencyHours = frequencyHours,
+                frequencyMinutes = frequencyMinutes,
+                durationDays = durationDays,
+                status = status.trim(),
+                isActive = (status.trim().uppercase() == "ACTIVO"),
+                notes = notes?.trim()
+            )
+            medicationDao.update(updated)
+        }
+    }
+
+    fun duplicateMedication(med: MedicationTreatmentEntity) {
+        viewModelScope.launch {
+            val start = LocalDate.now()
+            val end = start.plusDays(med.durationDays.toLong())
+            val duplicated = med.copy(
+                id = UUID.randomUUID().toString(),
+                startDate = start.toString(),
+                endDate = end.toString(),
+                notes = med.notes?.let { "Copia: $it" } ?: "Tratamiento duplicado"
+            )
+            medicationDao.insert(duplicated)
+        }
+    }
+
+    fun deleteMedication(med: MedicationTreatmentEntity) {
+        viewModelScope.launch {
+            medicationDao.delete(med)
+        }
+    }
+
+    // --- TEMPERATURA / FIEBRE ---
     fun addTemperature(
         celsius: Double,
         symptoms: String,
@@ -315,6 +369,44 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun updateTemperature(
+        record: TemperatureRecordEntity,
+        celsius: Double,
+        symptoms: String,
+        medicationGiven: String? = null,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val updated = record.copy(
+                celsius = celsius,
+                symptoms = symptoms.trim(),
+                medicationGiven = medicationGiven?.trim(),
+                notes = notes?.trim()
+            )
+            tempDao.update(updated)
+        }
+    }
+
+    fun duplicateTemperature(record: TemperatureRecordEntity) {
+        viewModelScope.launch {
+            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val duplicated = record.copy(
+                id = UUID.randomUUID().toString(),
+                date = LocalDate.now().toString(),
+                time = nowTime,
+                notes = record.notes?.let { "Copia: $it" } ?: "Registro duplicado"
+            )
+            tempDao.insert(duplicated)
+        }
+    }
+
+    fun deleteTemperature(record: TemperatureRecordEntity) {
+        viewModelScope.launch {
+            tempDao.delete(record)
+        }
+    }
+
+    // --- TURNOS Y CONSULTAS MÉDICAS ---
     fun addAppointment(
         doctorName: String,
         specialty: String,
@@ -322,12 +414,14 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         reason: String,
         date: String,
         time: String,
+        status: String = "pendiente",
         notes: String? = null
-    ) {
+    ): String {
+        val newId = UUID.randomUUID().toString()
         viewModelScope.launch {
             val profile = childProfile.value ?: return@launch
             val appt = MedicalAppointmentEntity(
-                id = UUID.randomUUID().toString(),
+                id = newId,
                 childId = profile.id,
                 date = date.trim(),
                 time = time.trim(),
@@ -335,18 +429,64 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 specialty = specialty.trim(),
                 clinic = clinic.trim(),
                 reason = reason.trim(),
-                status = "programada",
+                status = status.trim(),
                 notes = notes?.trim()
             )
             appointmentDao.insert(appt)
         }
+        return newId
     }
 
+    fun updateAppointment(
+        appointment: MedicalAppointmentEntity,
+        doctorName: String,
+        specialty: String,
+        clinic: String,
+        reason: String,
+        date: String,
+        time: String,
+        status: String = appointment.status,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val updated = appointment.copy(
+                doctorName = doctorName.trim(),
+                specialty = specialty.trim(),
+                clinic = clinic.trim(),
+                reason = reason.trim(),
+                date = date.trim(),
+                time = time.trim(),
+                status = status.trim(),
+                notes = notes?.trim()
+            )
+            appointmentDao.update(updated)
+        }
+    }
+
+    fun duplicateAppointment(appointment: MedicalAppointmentEntity) {
+        viewModelScope.launch {
+            val duplicated = appointment.copy(
+                id = UUID.randomUUID().toString(),
+                date = LocalDate.now().toString(),
+                notes = appointment.notes?.let { "Copia: $it" } ?: "Turno duplicado"
+            )
+            appointmentDao.insert(duplicated)
+        }
+    }
+
+    fun deleteAppointment(appointment: MedicalAppointmentEntity) {
+        viewModelScope.launch {
+            appointmentDao.delete(appointment)
+        }
+    }
+
+    // --- SUEÑO Y SIESTAS ---
     fun addSleep(
         startTime: String,
         endTime: String,
         type: String, // "siesta" or "noche"
         quality: String,
+        date: String = LocalDate.now().toString(),
         notes: String? = null
     ) {
         viewModelScope.launch {
@@ -355,18 +495,60 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
             val sleep = SleepEntity(
                 id = UUID.randomUUID().toString(),
                 childId = profile.id,
-                date = LocalDate.now().toString(),
-                startTime = startTime,
-                endTime = endTime,
+                date = date.trim(),
+                startTime = startTime.trim(),
+                endTime = endTime.trim(),
                 durationMinutes = durationMinutes,
-                type = type,
-                quality = quality,
-                notes = notes
+                type = type.trim(),
+                quality = quality.trim(),
+                notes = notes?.trim()
             )
             sleepDao.insert(sleep)
         }
     }
 
+    fun updateSleep(
+        record: SleepEntity,
+        startTime: String,
+        endTime: String,
+        type: String,
+        quality: String,
+        date: String = record.date,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val durationMinutes = calculateDuration(startTime, endTime)
+            val updated = record.copy(
+                date = date.trim(),
+                startTime = startTime.trim(),
+                endTime = endTime.trim(),
+                durationMinutes = durationMinutes,
+                type = type.trim(),
+                quality = quality.trim(),
+                notes = notes?.trim()
+            )
+            sleepDao.update(updated)
+        }
+    }
+
+    fun duplicateSleep(record: SleepEntity) {
+        viewModelScope.launch {
+            val duplicated = record.copy(
+                id = UUID.randomUUID().toString(),
+                date = LocalDate.now().toString(),
+                notes = record.notes?.let { "Copia: $it" } ?: "Registro duplicado"
+            )
+            sleepDao.insert(duplicated)
+        }
+    }
+
+    fun deleteSleep(record: SleepEntity) {
+        viewModelScope.launch {
+            sleepDao.delete(record)
+        }
+    }
+
+    // --- ALIMENTACIÓN / COMIDAS ---
     fun addMeal(
         mealType: String,
         foods: String,
@@ -391,6 +573,44 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun updateMeal(
+        record: MealEntity,
+        mealType: String,
+        foods: String,
+        appetite: String,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val updated = record.copy(
+                mealType = mealType,
+                foods = foods.trim(),
+                appetite = appetite,
+                notes = notes
+            )
+            mealDao.update(updated)
+        }
+    }
+
+    fun duplicateMeal(record: MealEntity) {
+        viewModelScope.launch {
+            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val duplicated = record.copy(
+                id = UUID.randomUUID().toString(),
+                date = LocalDate.now().toString(),
+                time = nowTime,
+                notes = record.notes?.let { "Copia: $it" } ?: "Registro duplicado"
+            )
+            mealDao.insert(duplicated)
+        }
+    }
+
+    fun deleteMeal(record: MealEntity) {
+        viewModelScope.launch {
+            mealDao.delete(record)
+        }
+    }
+
+    // --- ACTIVIDADES Y DESARROLLO ---
     fun addActivity(
         title: String,
         category: String,
@@ -414,22 +634,40 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun incrementWater() {
+    fun updateActivity(
+        record: ActivityEntity,
+        title: String,
+        category: String,
+        durationMinutes: Int,
+        notes: String? = null
+    ) {
         viewModelScope.launch {
-            val profile = childProfile.value ?: return@launch
+            val updated = record.copy(
+                title = title.trim(),
+                category = category,
+                durationMinutes = durationMinutes,
+                notes = notes
+            )
+            activityDao.update(updated)
+        }
+    }
+
+    fun duplicateActivity(record: ActivityEntity) {
+        viewModelScope.launch {
             val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-            val waterMeal = MealEntity(
+            val duplicated = record.copy(
                 id = UUID.randomUUID().toString(),
-                childId = profile.id,
                 date = LocalDate.now().toString(),
                 time = nowTime,
-                mealType = "hidratación",
-                foods = "Vaso de agua (200 ml)",
-                waterGlasses = 1,
-                appetite = "bueno",
-                notes = null
+                notes = record.notes?.let { "Copia: $it" } ?: "Registro duplicado"
             )
-            mealDao.insert(waterMeal)
+            activityDao.insert(duplicated)
+        }
+    }
+
+    fun deleteActivity(record: ActivityEntity) {
+        viewModelScope.launch {
+            activityDao.delete(record)
         }
     }
 

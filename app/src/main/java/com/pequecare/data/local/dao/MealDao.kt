@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.pequecare.data.local.entity.MealEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +19,9 @@ interface MealDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: MealEntity)
+
+    @Update
+    suspend fun update(record: MealEntity)
 
     @Delete
     suspend fun delete(record: MealEntity)

@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.pequecare.data.local.entity.ActivityEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +16,9 @@ interface ActivityDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: ActivityEntity)
+
+    @Update
+    suspend fun update(record: ActivityEntity)
 
     @Delete
     suspend fun delete(record: ActivityEntity)

@@ -28,11 +28,13 @@ data class MedicationTreatmentEntity(
     val unit: String, // Unidad de medida, ej: "ml", "mg", "gotas", "puff"
     val purpose: String, // Propósito o indicación médica, ej: "Antitérmico para fiebre"
     val frequencyHours: Int, // Frecuencia de toma en horas, ej: 8
+    val frequencyMinutes: Int = 0, // Minutos adicionales de frecuencia, ej: 0, 15, 30
     val startDate: String, // Fecha de inicio: YYYY-MM-DD
+    val startTime: String = "08:00", // Hora de inicio: HH:mm
     val endDate: String, // Fecha de finalización: YYYY-MM-DD
     val durationDays: Int, // Duración total en días del tratamiento
     val nextDoseTime: String? = null, // Próxima dosis programada: YYYY-MM-DDTHH:mm
-    val status: String, // Estado del tratamiento: "ACTIVO" | "COMPLETADO" | "SUSPENDIDO"
+    val status: String, // Estado del tratamiento: "ACTIVO" | "CULMINADO"
     val isActive: Boolean = true,
     val notes: String? = null
 )

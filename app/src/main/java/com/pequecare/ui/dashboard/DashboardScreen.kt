@@ -23,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -47,7 +45,6 @@ import com.pequecare.data.local.entity.GrowthRecordEntity
 import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.ui.theme.AmberAccent
 import com.pequecare.ui.theme.EmeraldSuccess
-import com.pequecare.ui.theme.IndigoPrimary
 import com.pequecare.ui.theme.RosePrimary
 
 @Composable
@@ -55,8 +52,6 @@ fun DashboardScreen(
     profile: ChildProfileEntity?,
     latestGrowth: GrowthRecordEntity?,
     activeMedications: List<MedicationTreatmentEntity>,
-    todayWaterGlasses: Int,
-    onIncrementWater: () -> Unit,
     onAddRecordClick: (type: String) -> Unit,
     onEditProfile: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -66,8 +61,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
-        val screenWidth = maxWidth
-        val isWideScreen = screenWidth > 600.dp
+        val isWideScreen = this.maxWidth > 600.dp
         val scrollState = rememberScrollState()
 
         Column(
@@ -86,38 +80,12 @@ fun DashboardScreen(
                 onAddGrowth = { onAddRecordClick("growth") }
             )
 
-            // Layout Adaptativo (Filas en pantallas anchas, Columnas en teléfonos estrechos)
-            if (isWideScreen) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    WaterTrackerCard(
-                        waterGlasses = todayWaterGlasses,
-                        onIncrementWater = onIncrementWater,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ActiveMedicationsCard(
-                        medications = activeMedications,
-                        onAddMedication = { onAddRecordClick("medication") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            } else {
-                WaterTrackerCard(
-                    waterGlasses = todayWaterGlasses,
-                    onIncrementWater = onIncrementWater,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                ActiveMedicationsCard(
-                    medications = activeMedications,
-                    onAddMedication = { onAddRecordClick("medication") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Accesos Rápidos Responsivos
-            QuickActionsGrid(onAddRecordClick = onAddRecordClick)
+            // Tratamientos Activos
+            ActiveMedicationsCard(
+                medications = activeMedications,
+                onAddMedication = { onAddRecordClick("medication") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -164,12 +132,12 @@ private fun ChildHeaderCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (!profile?.name.isNull_or_blank()) "¡Hola, ${profile?.name}!" else "¡Bienvenido a PequeCare!",
+                        text = if (!profile?.name.isNullOrBlank()) "¡Hola, ${profile?.name}!" else "¡Bienvenido a PequeCare!",
                         style = MaterialTheme.typography.headlineMedium,
                         color = Color.White
                     )
                     Text(
-                        text = if (!profile?.birthDate.isNull_or_blank()) "Fecha Nac.: ${profile?.birthDate} • Toca para editar" else "👉 Toca aquí para registrar al niño/a",
+                        text = if (!profile?.birthDate.isNullOrBlank()) "Fecha Nac.: ${profile?.birthDate} • Toca para editar" else "👉 Toca aquí para registrar al niño/a",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (profile == null) FontWeight.Bold else FontWeight.Normal,
                         color = Color.White.copy(alpha = 0.95f)
@@ -179,8 +147,6 @@ private fun ChildHeaderCard(
         }
     }
 }
-
-private fun String?.isNull_or_blank(): Boolean = this == null || this.isBlank()
 
 @Composable
 private fun GrowthSummaryCard(
@@ -228,13 +194,14 @@ private fun GrowthSummaryCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (latestGrowth != null) {
+                val formattedWeight = String.format(java.util.Locale.US, "%.3f", latestGrowth.weightKg).trimEnd('0').trimEnd('.')
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    GrowthMetricColumn("Peso", "${latestGrowth.weightKg} kg", "P${latestGrowth.weightPercentile}")
+                    GrowthMetricColumn("Peso", "$formattedWeight kg", "P${latestGrowth.weightPercentile}")
                     GrowthMetricColumn("Talla", "${latestGrowth.heightCm} cm", "P${latestGrowth.heightPercentile}")
-                    GrowthMetricColumn("IMC", "${latestGrowth.bmi}", "P${latestGrowth.bmiPercentile}")
+                    GrowthMetricColumn("IMC", "${latestGrowth.bmi} kg/m²", "P${latestGrowth.bmiPercentile}")
                 }
             } else {
                 Text(
@@ -262,57 +229,6 @@ private fun GrowthMetricColumn(title: String, value: String, percentile: String)
                 color = EmeraldSuccess,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
-        }
-    }
-}
-
-@Composable
-private fun WaterTrackerCard(
-    waterGlasses: Int,
-    onIncrementWater: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = IndigoPrimary.copy(alpha = 0.15f),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(imageVector = Icons.Default.WaterDrop, contentDescription = null, tint = IndigoPrimary)
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(text = "Agua de Hoy", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = "$waterGlasses vasitos (${waterGlasses * 200} ml)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Button(
-                onClick = onIncrementWater,
-                colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
-                shape = CircleShape
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir vaso")
-            }
         }
     }
 }
@@ -357,34 +273,5 @@ private fun ActiveMedicationsCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun QuickActionsGrid(onAddRecordClick: (type: String) -> Unit) {
-    Column {
-        Text(text = "Registro Rápido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            QuickActionButton("😴 Sueño", Modifier.weight(1f)) { onAddRecordClick("sleep") }
-            QuickActionButton("🍲 Comida", Modifier.weight(1f)) { onAddRecordClick("meal") }
-            QuickActionButton("🌡️ Fiebre", Modifier.weight(1f)) { onAddRecordClick("temperature") }
-            QuickActionButton("🩺 Turno", Modifier.weight(1f)) { onAddRecordClick("appointment") }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }

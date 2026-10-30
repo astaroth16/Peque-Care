@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.pequecare.data.local.entity.MedicalAppointmentEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +16,9 @@ interface MedicalAppointmentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(appointment: MedicalAppointmentEntity)
+
+    @Update
+    suspend fun update(appointment: MedicalAppointmentEntity)
 
     @Delete
     suspend fun delete(appointment: MedicalAppointmentEntity)

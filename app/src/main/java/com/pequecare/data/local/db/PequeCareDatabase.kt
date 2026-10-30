@@ -23,6 +23,9 @@ import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.SleepEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
 
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 @Database(
     entities = [
         ChildProfileEntity::class,
@@ -35,7 +38,7 @@ import com.pequecare.data.local.entity.TemperatureRecordEntity
         MealEntity::class,
         ActivityEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class PequeCareDatabase : RoomDatabase() {
@@ -53,6 +56,13 @@ abstract class PequeCareDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: PequeCareDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE medication_treatments ADD COLUMN frequencyMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE medication_treatments ADD COLUMN startTime TEXT NOT NULL DEFAULT '08:00'")
+            }
+        }
+
         fun getDatabase(context: Context): PequeCareDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -60,6 +70,7 @@ abstract class PequeCareDatabase : RoomDatabase() {
                     PequeCareDatabase::class.java,
                     "pequecare_database"
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

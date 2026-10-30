@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.pequecare.data.local.entity.TemperatureRecordEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +16,9 @@ interface TemperatureRecordDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: TemperatureRecordEntity)
+
+    @Update
+    suspend fun update(record: TemperatureRecordEntity)
 
     @Delete
     suspend fun delete(record: TemperatureRecordEntity)
