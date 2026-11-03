@@ -33,8 +33,8 @@ data class GrowthRecordEntity(
     val weightZScore: Double = 0.0,
     val heightZScore: Double = 0.0,
     val bmiZScore: Double = 0.0,
-    val weightStatus: String = "Normal OMS",
-    val heightStatus: String = "Normal OMS",
-    val bmiStatus: String = "Normal OMS",
+    val weightStatus: String = "Normal",
+    val heightStatus: String = "Normal",
+    val bmiStatus: String = "Normal",
     val notes: String? = null
 )

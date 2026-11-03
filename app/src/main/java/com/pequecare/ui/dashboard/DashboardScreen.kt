@@ -174,7 +174,7 @@ private fun GrowthSummaryCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Crecimiento OMS",
+                        text = "Crecimiento y Métricas",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -205,7 +205,7 @@ private fun GrowthSummaryCard(
                 }
             } else {
                 Text(
-                    text = "Aún no hay registros de crecimiento. Añade el primer peso y estatura según las curvas OMS.",
+                    text = "Aún no hay registros de crecimiento. Añade el primer peso y estatura del peque.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

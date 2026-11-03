@@ -53,8 +53,8 @@ object ReportExporter {
         sb.appendLine("==================================================")
         sb.appendLine()
 
-        // 1. CRECIMIENTO Y METRICAS OMS
-        sb.appendLine("--- 1. MÉTRICAS DE CRECIMIENTO (OMS) ---")
+        // 1. CRECIMIENTO Y METRICAS
+        sb.appendLine("--- 1. MÉTRICAS DE CRECIMIENTO ---")
         if (growthRecords.isEmpty()) {
             sb.appendLine("No hay registros de crecimiento en el rango seleccionado.")
         } else {
@@ -342,8 +342,8 @@ object ReportExporter {
             currentY += 28f
         }
 
-        // --- 1. CRECIMIENTO OMS ---
-        drawSectionHeader("📏 1. MÉTRICAS DE CRECIMIENTO Y CURVAS OMS")
+        // --- 1. CRECIMIENTO ---
+        drawSectionHeader("📏 1. MÉTRICAS DE CRECIMIENTO Y CURVAS")
         if (growthRecords.isEmpty()) {
             ensureSpace(20f)
             canvas.drawText("Sin mediciones de crecimiento en el período.", 46f, currentY + 10f, itemDetailPaint)

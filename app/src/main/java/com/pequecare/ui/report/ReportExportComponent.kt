@@ -214,10 +214,10 @@ fun ReportExportComponent(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    // Presets rápidos
+                    // Presets rápidos abreviados para evitar solapamiento
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         FilterChip(
                             selected = selectedPreset == "7dias" && !showCalendarPicker,
@@ -227,7 +227,8 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusDays(7).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("7 días") }
+                            label = { Text("7 días", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedPreset == "30dias" && !showCalendarPicker,
@@ -237,7 +238,8 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusMonths(1).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("1 Mes") }
+                            label = { Text("1 mes", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedPreset == "3meses" && !showCalendarPicker,
@@ -247,7 +249,8 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusMonths(3).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("3 Meses") }
+                            label = { Text("3 meses", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedPreset == "todo" && !showCalendarPicker,
@@ -257,7 +260,8 @@ fun ReportExportComponent(
                                 manualStartDate = "2020-01-01"
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("Todo") }
+                            label = { Text("Todo", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
 

@@ -261,7 +261,7 @@ fun AddGrowthDialog(
         title = {
             Column {
                 Text(
-                    text = if (initialRecord != null) "✏️ Editar Control de Crecimiento" else "📏 Registrar Crecimiento OMS",
+                    text = if (initialRecord != null) "✏️ Editar Control de Crecimiento" else "📏 Registrar Crecimiento",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -449,7 +449,7 @@ fun AddGrowthDialog(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Text(
-                                text = "Fórmula OMS: Peso / (Talla en m)²",
+                                text = "Fórmula: Peso / (Talla en m)²",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
                             )

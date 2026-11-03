@@ -77,7 +77,7 @@ import java.time.ZoneId
 
 enum class NavigationTab(val title: String, val icon: ImageVector) {
     RESUMEN("Resumen", Icons.Default.Home),
-    CRECIMIENTO("Crecimiento", Icons.Default.Straighten),
+    CRECIMIENTO("Desarrollo", Icons.Default.Straighten),
     SALUD("Salud", Icons.Default.MedicalServices),
     RUTINA("Rutina", Icons.Default.DateRange),
     INFORMES("Informes", Icons.Default.Assessment)
@@ -482,7 +482,7 @@ fun PequeCareApp(
                                 date = date,
                                 notes = notes
                             )
-                            Toast.makeText(context, "Control OMS registrado", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Control de crecimiento registrado", Toast.LENGTH_SHORT).show()
                         }
                         editingGrowthRecord = null
                         activeDialog = null

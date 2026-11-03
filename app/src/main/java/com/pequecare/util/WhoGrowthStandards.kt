@@ -60,21 +60,21 @@ object WhoGrowthStandards {
         val bmiP = zScoreToPercentile(bmiZ)
 
         val weightStatus = when {
-            weightZ < -2.0 -> "Bajo Peso OMS"
-            weightZ > 2.0 -> "Sobrepeso OMS"
-            else -> "Peso Adecuado OMS"
+            weightZ < -2.0 -> "Bajo Peso"
+            weightZ > 2.0 -> "Sobrepeso"
+            else -> "Peso Adecuado"
         }
 
         val heightStatus = when {
-            heightZ < -2.0 -> "Talla Baja OMS"
-            heightZ > 2.0 -> "Talla Alta OMS"
-            else -> "Talla Adecuada OMS"
+            heightZ < -2.0 -> "Talla Baja"
+            heightZ > 2.0 -> "Talla Alta"
+            else -> "Talla Adecuada"
         }
 
         val bmiStatus = when {
             bmiZ < -2.0 -> "Bajo Peso"
             bmiZ > 2.0 -> "Sobrepeso"
-            else -> "Normal OMS"
+            else -> "Normal"
         }
 
         return WhoEvaluation(

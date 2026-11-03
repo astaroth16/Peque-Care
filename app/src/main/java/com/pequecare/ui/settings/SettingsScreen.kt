@@ -149,14 +149,9 @@ fun SettingsScreen(
                             )
                             Column {
                                 Text(
-                                    text = if (isDarkTheme) "Modo Oscuro Activo" else "Modo Claro Activo",
+                                    text = if (isDarkTheme) "Modo Oscuro" else "Modo Claro",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Paleta Material Design 3 con tonos pasteles suaves",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -503,7 +498,7 @@ fun SettingsScreen(
                     }
 
                     Text(
-                        text = "• Versión: 1.2 (Material Design 3 Pasteles)\n• Estándares: Curvas y Percentiles de la OMS\n• Almacenamiento: Seguro y local en SQLite Room\n• Exportación: PDF nativo y texto para WhatsApp / Email",
+                        text = "• Versión: 1.2 (Material Design 3 Pasteles)\n• Estándares: Curvas y Percentiles pediátricos de referencia\n• Almacenamiento: Seguro y local en SQLite Room\n• Exportación: PDF nativo y texto para WhatsApp / Email",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp

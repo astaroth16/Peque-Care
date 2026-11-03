@@ -120,12 +120,12 @@ fun GrowthScreen(
                                 )
                                 Column {
                                     Text(
-                                        text = "Curvas de Crecimiento OMS",
+                                        text = "Curvas de Crecimiento",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Seguimiento de peso, estatura y percentiles oficiales",
+                                        text = "Seguimiento de peso, estatura y percentiles de referencia",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -277,7 +277,7 @@ fun GrowthCurveCard(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Curvas de Crecimiento OMS",
+                    text = "Curvas de Crecimiento",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

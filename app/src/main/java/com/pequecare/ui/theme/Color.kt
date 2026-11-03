@@ -28,12 +28,12 @@ val IndigoContainer = Color(0xFFE7F2FC)
 val PastelLavender = Color(0xFFCFB5E8)
 val PastelLavenderContainer = Color(0xFFF5EEFB)
 
-// Fondos y Superficies - Modo Claro
-val SlateDark = Color(0xFF2E2426)
+// Fondos y Superficies - Modo Claro Pastel (Suave para pantallas AMOLED, evita blanco puro cegador)
+val SlateDark = Color(0xFF2C2426)
 val SlateMedium = Color(0xFF6E5F62)
-val SlateLight = Color(0xFFFDFBF9)
+val SlateLight = Color(0xFFFAF7F5) // Tono cálido pastel tipo lino/crema suave
 val SurfaceCard = Color(0xFFFFFFFF)
-val SurfaceVariantLight = Color(0xFFF7EFEF)
+val SurfaceVariantLight = Color(0xFFF3EBEA)
 
 // Fondos y Superficies - Modo Oscuro Pastel
 val DarkBackground = Color(0xFF181415)
