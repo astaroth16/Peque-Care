@@ -17,6 +17,9 @@ interface MedicationTreatmentDao {
     @Query("SELECT * FROM medication_treatments WHERE childId = :childId ORDER BY startDate DESC")
     fun getAllMedications(childId: String): Flow<List<MedicationTreatmentEntity>>
 
+    @Query("SELECT * FROM medication_treatments WHERE id = :id LIMIT 1")
+    suspend fun getMedicationById(id: String): MedicationTreatmentEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(treatment: MedicationTreatmentEntity)
 

@@ -83,6 +83,9 @@ dependencies {
     implementation(libs.google.api.services.drive)
     implementation(libs.google.auth.library.oauth2.http)
 
+    // WorkManager (para backups periódicos automáticos)
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

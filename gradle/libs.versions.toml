@@ -11,6 +11,7 @@ playServicesAuth = "21.3.0"
 googleApiClientAndroid = "2.7.0"
 googleServicesDrive = "v3-rev20240509-2.0.0"
 googleAuthLibraryOauth2Http = "1.29.0"
+workRuntimeKtx = "2.10.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
@@ -32,6 +33,7 @@ play-services-auth = { group = "com.google.android.gms", name = "play-services-a
 google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
 google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleServicesDrive" }
 google-auth-library-oauth2-http = { group = "com.google.auth", name = "google-auth-library-oauth2-http", version.ref = "googleAuthLibraryOauth2Http" }
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

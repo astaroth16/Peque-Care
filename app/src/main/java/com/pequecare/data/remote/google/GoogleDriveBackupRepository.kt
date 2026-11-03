@@ -93,11 +93,9 @@ class GoogleDriveBackupRepository(private val context: Context) {
      * Descarga la última copia de seguridad de la base de datos desde Google Drive y sobreescribe el archivo SQLite local.
      *
      * @param account Cuenta autenticada de Google Sign-In.
-     * @param roomDatabase Instancia de Room para cerrar conexiones antes de sobreescribir.
      */
     suspend fun downloadDatabaseBackup(
-        account: GoogleSignInAccount,
-        roomDatabase: RoomDatabase
+        account: GoogleSignInAccount
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val driveService = getDriveService(account)
@@ -107,9 +105,7 @@ class GoogleDriveBackupRepository(private val context: Context) {
                 ?: return@withContext Result.failure(Exception("No se encontró ningún respaldo en Google Drive."))
 
             // 2. Cerrar la base de datos Room para liberar los bloqueos sobre el archivo local
-            if (roomDatabase.isOpen) {
-                roomDatabase.close()
-            }
+            com.pequecare.data.local.db.PequeCareDatabase.closeDatabase()
 
             val targetDbFile = context.getDatabasePath(DB_NAME)
 

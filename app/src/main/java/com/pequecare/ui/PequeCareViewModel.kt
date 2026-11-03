@@ -88,6 +88,111 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isDarkTheme = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
+    // Estado de sesión y bienvenida (Onboarding)
+    // "UNSET": usuario nuevo que aún no ha elegido modo
+    // "GUEST": modo invitado sin cuenta vinculada
+    // "GOOGLE": usuario autenticado con Google
+    private val _authMode = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("auth_mode", "UNSET") ?: "UNSET")
+    val authMode: StateFlow<String> = _authMode
+
+    private val _googleUserEmail = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("google_user_email", null))
+    val googleUserEmail: StateFlow<String?> = _googleUserEmail
+
+    private val _googleUserName = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("google_user_name", null))
+    val googleUserName: StateFlow<String?> = _googleUserName
+
+    // Configuración de frecuencia de respaldo automático ("daily", "weekly", "monthly", "none")
+    private val _backupFrequency = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("backup_frequency", "daily") ?: "daily")
+    val backupFrequency: StateFlow<String> = _backupFrequency
+
+    private val _lastBackupDate = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("last_drive_backup_date", null))
+    val lastBackupDate: StateFlow<String?> = _lastBackupDate
+
+    private val _backupStateMessage = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val backupStateMessage: StateFlow<String?> = _backupStateMessage
+
+    private val _isBackupLoading = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isBackupLoading: StateFlow<Boolean> = _isBackupLoading
+
+    fun setAuthModeGuest() {
+        _authMode.value = "GUEST"
+        prefs.edit().putString("auth_mode", "GUEST").apply()
+    }
+
+    fun setAuthModeGoogle(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
+        _authMode.value = "GOOGLE"
+        _googleUserEmail.value = account.email
+        _googleUserName.value = account.displayName
+        prefs.edit()
+            .putString("auth_mode", "GOOGLE")
+            .putString("google_user_email", account.email)
+            .putString("google_user_name", account.displayName)
+            .apply()
+
+        // Programar backup automático de acuerdo a la frecuencia
+        com.pequecare.util.BackupWorker.schedulePeriodicBackup(getApplication(), _backupFrequency.value)
+    }
+
+    fun logoutGoogle() {
+        _authMode.value = "GUEST"
+        _googleUserEmail.value = null
+        _googleUserName.value = null
+        prefs.edit()
+            .putString("auth_mode", "GUEST")
+            .remove("google_user_email")
+            .remove("google_user_name")
+            .apply()
+        com.pequecare.util.BackupWorker.cancelPeriodicBackup(getApplication())
+    }
+
+    fun updateBackupFrequency(newFreq: String) {
+        _backupFrequency.value = newFreq
+        prefs.edit().putString("backup_frequency", newFreq).apply()
+        if (_authMode.value == "GOOGLE") {
+            com.pequecare.util.BackupWorker.schedulePeriodicBackup(getApplication(), newFreq)
+        }
+    }
+
+    fun backupNowToGoogleDrive(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
+        viewModelScope.launch {
+            _isBackupLoading.value = true
+            _backupStateMessage.value = "Subiendo respaldo a Google Drive..."
+            val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+            val res = repo.uploadDatabaseBackup(account, db)
+            _isBackupLoading.value = false
+            if (res.isSuccess) {
+                val nowStr = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                _lastBackupDate.value = nowStr
+                prefs.edit().putString("last_drive_backup_date", nowStr).apply()
+                _backupStateMessage.value = "Copia de seguridad guardada con éxito"
+            } else {
+                _backupStateMessage.value = "Error al subir respaldo: ${res.exceptionOrNull()?.localizedMessage ?: "Desconocido"}"
+            }
+        }
+    }
+
+    fun restoreFromGoogleDrive(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount, onCompleted: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            _isBackupLoading.value = true
+            _backupStateMessage.value = "Descargando respaldo desde Google Drive..."
+            val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+            val res = repo.downloadDatabaseBackup(account)
+            _isBackupLoading.value = false
+            if (res.isSuccess) {
+                _backupStateMessage.value = "Restauración completada. Reiniciando base de datos..."
+                onCompleted(true, "Datos restaurados con éxito")
+            } else {
+                val err = res.exceptionOrNull()?.localizedMessage ?: "No se encontró respaldo"
+                _backupStateMessage.value = "Error en restauración: $err"
+                onCompleted(false, err)
+            }
+        }
+    }
+
+    fun clearBackupMessage() {
+        _backupStateMessage.value = null
+    }
+
     fun toggleDarkTheme() {
         val newTheme = !_isDarkTheme.value
         _isDarkTheme.value = newTheme

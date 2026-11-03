@@ -4,6 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.pequecare.util.NotificationHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class PequeCareAlarmReceiver : BroadcastReceiver() {
 
@@ -31,30 +34,63 @@ class PequeCareAlarmReceiver : BroadcastReceiver() {
             NotificationHelper.CHANNEL_APPOINTMENTS
         }
 
-        NotificationHelper.showNotification(
-            context = context,
-            channelId = channelId,
-            title = title,
-            message = message,
-            notificationId = notificationId
-        )
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val db = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(context)
 
-        // Si es una alarma de medicación periódica activa, reprogramar la siguiente dosis
-        if (type == TYPE_MEDICATION) {
-            val intervalMillis = intent.getLongExtra(EXTRA_INTERVAL_MILLIS, 0L)
-            val medId = intent.getStringExtra(EXTRA_MED_ID)
-            if (intervalMillis > 0 && !medId.isNullOrBlank()) {
-                val nextTrigger = System.currentTimeMillis() + intervalMillis
-                val dosage = message.substringAfter("(", "").substringBefore(")", "dosis")
-                val medName = message.substringAfter("suministrar ", "").substringBefore(" (", "Medicación")
-                NotificationHelper.scheduleMedicationNotification(
-                    context = context,
-                    medicationId = medId,
-                    medName = medName,
-                    dosage = dosage,
-                    startEpochMillis = nextTrigger,
-                    intervalMillis = intervalMillis
-                )
+                // 1. Validar que la entidad siga existiendo en la base de datos antes de mostrar la notificación
+                val shouldShowNotification = when (type) {
+                    TYPE_MEDICATION -> {
+                        val medId = intent.getStringExtra(EXTRA_MED_ID)
+                        if (!medId.isNullOrBlank()) {
+                            val med = db.medicationTreatmentDao().getMedicationById(medId)
+                            med != null && med.isActive && med.status.equals("ACTIVO", ignoreCase = true)
+                        } else true
+                    }
+                    TYPE_APPOINTMENT -> {
+                        // El extra notificationId o hash de id se corresponde con la cita
+                        val apptId = intent.getStringExtra("extra_appointment_id")
+                        if (!apptId.isNullOrBlank()) {
+                            val appt = db.medicalAppointmentDao().getAppointmentById(apptId)
+                            appt != null && !appt.status.equals("pasado", ignoreCase = true)
+                        } else true
+                    }
+                    else -> true
+                }
+
+                if (shouldShowNotification) {
+                    NotificationHelper.showNotification(
+                        context = context,
+                        channelId = channelId,
+                        title = title,
+                        message = message,
+                        notificationId = notificationId
+                    )
+
+                    // 2. Si es una alarma de medicación periódica activa, reprogramar la siguiente dosis
+                    if (type == TYPE_MEDICATION) {
+                        val intervalMillis = intent.getLongExtra(EXTRA_INTERVAL_MILLIS, 0L)
+                        val medId = intent.getStringExtra(EXTRA_MED_ID)
+                        if (intervalMillis > 0 && !medId.isNullOrBlank()) {
+                            val nextTrigger = System.currentTimeMillis() + intervalMillis
+                            val dosage = message.substringAfter("(", "").substringBefore(")", "dosis")
+                            val medName = message.substringAfter("suministrar ", "").substringBefore(" (", "Medicación")
+                            NotificationHelper.scheduleMedicationNotification(
+                                context = context,
+                                medicationId = medId,
+                                medName = medName,
+                                dosage = dosage,
+                                startEpochMillis = nextTrigger,
+                                intervalMillis = intervalMillis
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                pendingResult.finish()
             }
         }
     }

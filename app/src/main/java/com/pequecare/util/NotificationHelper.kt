@@ -122,7 +122,7 @@ object NotificationHelper {
 
         val intent = Intent(context, PequeCareAlarmReceiver::class.java).apply {
             putExtra(PequeCareAlarmReceiver.EXTRA_TYPE, PequeCareAlarmReceiver.TYPE_APPOINTMENT)
-            putExtra(PequeCareAlarmReceiver.EXTRA_TITLE, "🩺 Recordatorio de Turno Médico")
+            putExtra(PequeCareAlarmReceiver.EXTRA_TITLE, "Recordatorio de Turno Médico")
             putExtra(
                 PequeCareAlarmReceiver.EXTRA_MESSAGE,
                 "Recordatorio de turno con $doctorName ($specialty) a las $timeStr hs en $clinic"
@@ -131,6 +131,7 @@ object NotificationHelper {
                 PequeCareAlarmReceiver.EXTRA_NOTIFICATION_ID,
                 kotlin.math.abs(appointmentId.hashCode())
             )
+            putExtra("extra_appointment_id", appointmentId)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -180,18 +181,22 @@ object NotificationHelper {
     }
 
     fun cancelReminder(context: Context, id: String) {
+        val notificationId = kotlin.math.abs(id.hashCode())
         val intent = Intent(context, PequeCareAlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            kotlin.math.abs(id.hashCode()),
+            notificationId,
             intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        if (pendingIntent != null) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-        }
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
+
+        // También cerrar cualquier notificación activa visible con este ID
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationId)
     }
 
     private fun scheduleAlarm(context: Context, triggerMillis: Long, pendingIntent: PendingIntent) {

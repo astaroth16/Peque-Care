@@ -37,6 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
+import com.google.android.gms.common.api.ApiException
+import com.google.api.services.drive.DriveScopes
 import com.pequecare.data.local.entity.ActivityEntity
 import com.pequecare.data.local.entity.GrowthRecordEntity
 import com.pequecare.data.local.entity.MealEntity
@@ -45,6 +52,7 @@ import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.SleepEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
 import com.pequecare.ui.PequeCareViewModel
+import com.pequecare.ui.auth.WelcomeAuthScreen
 import com.pequecare.ui.dashboard.DashboardScreen
 import com.pequecare.ui.dialogs.AddActivityDialog
 import com.pequecare.ui.dialogs.AddAppointmentDialog
@@ -92,6 +100,45 @@ fun PequeCareApp(
     val activityRecords by viewModel.activityRecords.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
 
+    val authMode by viewModel.authMode.collectAsState()
+    val googleUserEmail by viewModel.googleUserEmail.collectAsState()
+    val googleUserName by viewModel.googleUserName.collectAsState()
+    val backupFrequency by viewModel.backupFrequency.collectAsState()
+    val lastBackupDate by viewModel.lastBackupDate.collectAsState()
+    val isBackupLoading by viewModel.isBackupLoading.collectAsState()
+    val backupMessage by viewModel.backupStateMessage.collectAsState()
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            if (account != null) {
+                viewModel.setAuthModeGoogle(account)
+                Toast.makeText(context, "Sesión iniciada: ${account.email}", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "No se pudo iniciar sesión con Google: ${e.localizedMessage ?: "Cancelado"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun launchGoogleSignIn() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
+            .build()
+        val client = GoogleSignIn.getClient(context, gso)
+        googleSignInLauncher.launch(client.signInIntent)
+    }
+
+    androidx.compose.runtime.LaunchedEffect(backupMessage) {
+        if (!backupMessage.isNullOrBlank()) {
+            Toast.makeText(context, backupMessage, Toast.LENGTH_LONG).show()
+            viewModel.clearBackupMessage()
+        }
+    }
+
     var selectedTab by remember { mutableStateOf(NavigationTab.RESUMEN) }
     var activeDialog by remember { mutableStateOf<String?>(null) }
     var editingGrowthRecord by remember { mutableStateOf<GrowthRecordEntity?>(null) }
@@ -113,7 +160,19 @@ fun PequeCareApp(
     }
 
     PequeCareTheme(darkTheme = isDarkTheme) {
-        Scaffold(
+        // Si el usuario aún no ha seleccionado si desea Iniciar Sesión con Google o continuar como Invitado
+        if (authMode == "UNSET") {
+            WelcomeAuthScreen(
+                onSignInWithGoogle = { launchGoogleSignIn() },
+                onContinueAsGuest = {
+                    viewModel.setAuthModeGuest()
+                    if (profile == null) {
+                        activeDialog = "child_profile"
+                    }
+                }
+            )
+        } else {
+            Scaffold(
             contentWindowInsets = WindowInsets.safeDrawing,
             topBar = {
                 CenterAlignedTopAppBar(
@@ -213,8 +272,9 @@ fun PequeCareApp(
                             Toast.makeText(context, "Tratamiento duplicado", Toast.LENGTH_SHORT).show()
                         },
                         onDeleteMedicationClick = { med ->
+                            NotificationHelper.cancelReminder(context, med.id)
                             viewModel.deleteMedication(med)
-                            Toast.makeText(context, "Tratamiento eliminado", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Tratamiento eliminado y recordatorios cancelados", Toast.LENGTH_SHORT).show()
                         },
                         onAddAppointmentClick = {
                             editingAppointment = null
@@ -229,8 +289,9 @@ fun PequeCareApp(
                             Toast.makeText(context, "Turno duplicado", Toast.LENGTH_SHORT).show()
                         },
                         onDeleteAppointmentClick = { appt ->
+                            NotificationHelper.cancelReminder(context, appt.id)
                             viewModel.deleteAppointment(appt)
-                            Toast.makeText(context, "Turno eliminado", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Turno eliminado y alertas canceladas", Toast.LENGTH_SHORT).show()
                         },
                         onAddTemperatureClick = {
                             editingTemperature = null
@@ -334,6 +395,41 @@ fun PequeCareApp(
                     onOpenReportsClick = {
                         showSettingsSheet = false
                         selectedTab = NavigationTab.INFORMES
+                    },
+                    googleUserEmail = googleUserEmail,
+                    googleUserName = googleUserName,
+                    backupFrequency = backupFrequency,
+                    lastBackupDate = lastBackupDate,
+                    isBackupLoading = isBackupLoading,
+                    onSignInGoogleClick = { launchGoogleSignIn() },
+                    onSignOutGoogleClick = {
+                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                        val client = GoogleSignIn.getClient(context, gso)
+                        client.signOut().addOnCompleteListener {
+                            viewModel.logoutGoogle()
+                            Toast.makeText(context, "Sesión de Google cerrada", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onBackupNowClick = {
+                        val account = GoogleSignIn.getLastSignedInAccount(context)
+                        if (account != null) {
+                            viewModel.backupNowToGoogleDrive(account)
+                        } else {
+                            launchGoogleSignIn()
+                        }
+                    },
+                    onRestoreBackupClick = {
+                        val account = GoogleSignIn.getLastSignedInAccount(context)
+                        if (account != null) {
+                            viewModel.restoreFromGoogleDrive(account) { success, msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            launchGoogleSignIn()
+                        }
+                    },
+                    onUpdateBackupFrequency = { freq ->
+                        viewModel.updateBackupFrequency(freq)
                     }
                 )
             }
@@ -531,7 +627,11 @@ fun PequeCareApp(
                                         dateStr = date,
                                         timeStr = time
                                     )
+                                } else {
+                                    NotificationHelper.cancelReminder(context, editingAppointment!!.id)
                                 }
+                            } else {
+                                NotificationHelper.cancelReminder(context, editingAppointment!!.id)
                             }
                             Toast.makeText(context, "Turno médico actualizado", Toast.LENGTH_SHORT).show()
                         } else {
@@ -660,5 +760,6 @@ fun PequeCareApp(
                 )
             }
         }
+    }
     }
 }

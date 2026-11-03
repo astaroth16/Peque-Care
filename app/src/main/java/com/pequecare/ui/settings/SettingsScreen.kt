@@ -37,6 +37,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -53,6 +61,16 @@ fun SettingsScreen(
     onToggleDarkTheme: () -> Unit,
     onEditProfileClick: () -> Unit,
     onOpenReportsClick: () -> Unit,
+    googleUserEmail: String?,
+    googleUserName: String?,
+    backupFrequency: String,
+    lastBackupDate: String?,
+    isBackupLoading: Boolean,
+    onSignInGoogleClick: () -> Unit,
+    onSignOutGoogleClick: () -> Unit,
+    onBackupNowClick: () -> Unit,
+    onRestoreBackupClick: () -> Unit,
+    onUpdateBackupFrequency: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -280,7 +298,184 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. ACERCA DE LA APP
+            // 4. COPIA DE SEGURIDAD EN GOOGLE DRIVE
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Copia de Seguridad en Google Drive",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Respaldo y restauración en la nube",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (googleUserEmail != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = googleUserName ?: "Usuario de Google",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = googleUserEmail,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = onSignOutGoogleClick,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Cerrar", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+
+                        // Estado de último respaldo
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = if (lastBackupDate != null) "Última copia: $lastBackupDate" else "Aún no se ha realizado ninguna copia",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Frecuencia de respaldo
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "Frecuencia de respaldo automático:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf("daily" to "Diaria", "weekly" to "Semanal", "monthly" to "Mensual").forEach { (freqKey, label) ->
+                                    FilterChip(
+                                        selected = backupFrequency == freqKey,
+                                        onClick = { onUpdateBackupFrequency(freqKey) },
+                                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Botones de acción manual: Subir copia y Restaurar copia
+                        if (isBackupLoading) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Procesando copia en Google Drive...", style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onBackupNowClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Respaldar ahora", style = MaterialTheme.typography.labelSmall)
+                                }
+
+                                OutlinedButton(
+                                    onClick = onRestoreBackupClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Restaurar", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    } else {
+                        // Estado no vinculado / Invitado
+                        Text(
+                            text = "Inicia sesión con tu cuenta de Google para respaldar tus datos en Google Drive. Si cambias de teléfono o reinstalas la aplicación, podrás recuperar todos los controles de crecimiento, vacunas, registros y medicamentos con un solo toque.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Button(
+                            onClick = onSignInGoogleClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Cloud, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Vincular Google Drive", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // 5. ACERCA DE LA APP
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
