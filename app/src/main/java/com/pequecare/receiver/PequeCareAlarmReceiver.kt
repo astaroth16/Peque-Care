@@ -46,17 +46,16 @@ class PequeCareAlarmReceiver : BroadcastReceiver() {
                         if (!medId.isNullOrBlank()) {
                             val med = db.medicationTreatmentDao().getMedicationById(medId)
                             med != null && med.isActive && med.status.equals("ACTIVO", ignoreCase = true)
-                        } else true
+                        } else false
                     }
                     TYPE_APPOINTMENT -> {
-                        // El extra notificationId o hash de id se corresponde con la cita
                         val apptId = intent.getStringExtra("extra_appointment_id")
                         if (!apptId.isNullOrBlank()) {
                             val appt = db.medicalAppointmentDao().getAppointmentById(apptId)
                             appt != null && !appt.status.equals("pasado", ignoreCase = true)
-                        } else true
+                        } else false
                     }
-                    else -> true
+                    else -> false
                 }
 
                 if (shouldShowNotification) {
@@ -85,6 +84,12 @@ class PequeCareAlarmReceiver : BroadcastReceiver() {
                                 intervalMillis = intervalMillis
                             )
                         }
+                    }
+                } else {
+                    // Si ya no existe o no está activo, cancelar cualquier residuo de alarma o notificación
+                    val idToCancel = intent.getStringExtra(EXTRA_MED_ID) ?: intent.getStringExtra("extra_appointment_id")
+                    if (!idToCancel.isNullOrBlank()) {
+                        NotificationHelper.cancelReminder(context, idToCancel)
                     }
                 }
             } catch (e: Exception) {

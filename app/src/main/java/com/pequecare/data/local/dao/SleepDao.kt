@@ -14,8 +14,14 @@ interface SleepDao {
     @Query("SELECT * FROM sleep_records WHERE childId = :childId ORDER BY date DESC, startTime DESC")
     fun getSleepRecords(childId: String): Flow<List<SleepEntity>>
 
+    @Query("SELECT * FROM sleep_records WHERE childId = :childId ORDER BY date DESC, startTime DESC")
+    suspend fun getSleepRecordsOnce(childId: String): List<SleepEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: SleepEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<SleepEntity>)
 
     @Update
     suspend fun update(record: SleepEntity)

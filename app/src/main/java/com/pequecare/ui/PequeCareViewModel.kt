@@ -41,8 +41,28 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     private val mealDao = db.mealDao()
     private val activityDao = db.activityDao()
 
-    val childProfile: StateFlow<ChildProfileEntity?> = childProfileDao.getChildProfile()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    private val prefs = application.getSharedPreferences("pequecare_prefs", android.content.Context.MODE_PRIVATE)
+
+    val allProfiles: StateFlow<List<ChildProfileEntity>> = childProfileDao.getAllChildProfiles()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedChildId = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("selected_child_id", null))
+    val selectedChildId: StateFlow<String?> = _selectedChildId
+
+    val childProfile: StateFlow<ChildProfileEntity?> = kotlinx.coroutines.flow.combine(allProfiles, _selectedChildId) { profiles, selId ->
+        if (profiles.isEmpty()) null
+        else {
+            val found = profiles.find { it.id == selId }
+            if (found != null) {
+                found
+            } else {
+                val first = profiles.first()
+                _selectedChildId.value = first.id
+                prefs.edit().putString("selected_child_id", first.id).apply()
+                first
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val growthRecords: StateFlow<List<GrowthRecordEntity>> = childProfile.flatMapLatest { profile ->
         if (profile != null) growthRecordDao.getAllGrowthRecords(profile.id)
@@ -84,7 +104,6 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val prefs = application.getSharedPreferences("pequecare_prefs", android.content.Context.MODE_PRIVATE)
     private val _isDarkTheme = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
@@ -158,15 +177,99 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
             _isBackupLoading.value = true
             _backupStateMessage.value = "Subiendo respaldo a Google Drive..."
             val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
-            val res = repo.uploadDatabaseBackup(account, db)
+            val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
+            val res = repo.uploadDatabaseBackup(account, activeDb)
             _isBackupLoading.value = false
             if (res.isSuccess) {
                 val nowStr = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                 _lastBackupDate.value = nowStr
                 prefs.edit().putString("last_drive_backup_date", nowStr).apply()
-                _backupStateMessage.value = "Copia de seguridad guardada con éxito"
+                _backupStateMessage.value = "Copia familiar guardada con éxito"
             } else {
                 _backupStateMessage.value = "Error al subir respaldo: ${res.exceptionOrNull()?.localizedMessage ?: "Desconocido"}"
+            }
+        }
+    }
+
+    fun backupChildToGoogleDrive(
+        account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
+        child: ChildProfileEntity
+    ) {
+        viewModelScope.launch {
+            _isBackupLoading.value = true
+            _backupStateMessage.value = "Respaldando ficha de ${child.name} en Google Drive..."
+            val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+            val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
+            val res = repo.uploadChildBackup(account, activeDb, child)
+            _isBackupLoading.value = false
+            if (res.isSuccess) {
+                val nowStr = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                _lastBackupDate.value = nowStr
+                prefs.edit().putString("last_drive_backup_date", nowStr).apply()
+                _backupStateMessage.value = "Ficha de ${child.name} respaldada con éxito"
+            } else {
+                _backupStateMessage.value = "Error al subir ficha: ${res.exceptionOrNull()?.localizedMessage ?: "Desconocido"}"
+            }
+        }
+    }
+
+    fun listDriveBackups(
+        account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
+        onResult: (List<com.pequecare.data.remote.google.DriveBackupItem>) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isBackupLoading.value = true
+            val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+            val res = repo.listAvailableBackups(account)
+            _isBackupLoading.value = false
+            if (res.isSuccess) {
+                onResult(res.getOrDefault(emptyList()))
+            } else {
+                val err = res.exceptionOrNull()?.localizedMessage ?: "Error al conectar con Drive"
+                _backupStateMessage.value = err
+                onResult(emptyList())
+            }
+        }
+    }
+
+    fun restoreDriveBackupItem(
+        account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
+        item: com.pequecare.data.remote.google.DriveBackupItem,
+        onCompleted: (Boolean, String, Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isBackupLoading.value = true
+            val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+
+            if (item.isFullBackup) {
+                _backupStateMessage.value = "Descargando base de datos familiar..."
+                val res = repo.downloadDatabaseBackup(account, item.fileId)
+                _isBackupLoading.value = false
+                if (res.isSuccess) {
+                    onCompleted(true, "Base de datos familiar restaurada con éxito", true)
+                } else {
+                    val err = res.exceptionOrNull()?.localizedMessage ?: "Error al restaurar"
+                    _backupStateMessage.value = err
+                    onCompleted(false, err, true)
+                }
+            } else {
+                _backupStateMessage.value = "Descargando ficha de ${item.childName ?: "niño"}..."
+                val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
+                val res = repo.downloadChildBackup(account, item.fileId, activeDb)
+                _isBackupLoading.value = false
+                if (res.isSuccess) {
+                    val restoredChild = res.getOrNull()
+                    if (restoredChild != null) {
+                        selectChild(restoredChild.id)
+                    }
+                    val msg = "Ficha de ${restoredChild?.name ?: "niño"} restaurada con éxito"
+                    _backupStateMessage.value = msg
+                    onCompleted(true, msg, false)
+                } else {
+                    val err = res.exceptionOrNull()?.localizedMessage ?: "Error al restaurar ficha"
+                    _backupStateMessage.value = err
+                    onCompleted(false, err, false)
+                }
             }
         }
     }
@@ -199,7 +302,41 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         prefs.edit().putBoolean("is_dark_theme", newTheme).apply()
     }
 
+    fun selectChild(childId: String) {
+        _selectedChildId.value = childId
+        prefs.edit().putString("selected_child_id", childId).apply()
+    }
+
+    fun deleteChildProfile(profile: ChildProfileEntity) {
+        viewModelScope.launch {
+            // Cancelar alarmas programadas de tratamientos y citas de este peque
+            try {
+                val meds = medicationDao.getAllMedicationsOnce(profile.id)
+                meds.forEach { med ->
+                    com.pequecare.util.NotificationHelper.cancelReminder(getApplication(), med.id)
+                }
+                val appts = appointmentDao.getAppointmentsOnce(profile.id)
+                appts.forEach { appt ->
+                    com.pequecare.util.NotificationHelper.cancelReminder(getApplication(), appt.id)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            childProfileDao.delete(profile)
+            val remaining = childProfileDao.getAllChildProfilesOnce().filter { it.id != profile.id }
+            val nextId = remaining.firstOrNull()?.id
+            _selectedChildId.value = nextId
+            if (nextId != null) {
+                prefs.edit().putString("selected_child_id", nextId).apply()
+            } else {
+                prefs.edit().remove("selected_child_id").apply()
+            }
+        }
+    }
+
     fun saveChildProfile(
+        childId: String? = null,
         name: String,
         lastName: String,
         birthDate: String,
@@ -212,8 +349,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         notes: String? = null
     ) {
         viewModelScope.launch {
-            val current = childProfile.value
-            val id = current?.id ?: UUID.randomUUID().toString()
+            val id = childId ?: UUID.randomUUID().toString()
             val profile = ChildProfileEntity(
                 id = id,
                 name = name.trim(),
@@ -228,6 +364,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 notes = notes?.trim()
             )
             childProfileDao.insertOrUpdate(profile)
+            _selectedChildId.value = id
+            prefs.edit().putString("selected_child_id", id).apply()
         }
     }
 
@@ -447,6 +585,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteMedication(med: MedicationTreatmentEntity) {
         viewModelScope.launch {
             medicationDao.delete(med)
+            com.pequecare.util.NotificationHelper.cancelReminder(getApplication(), med.id)
         }
     }
 
@@ -582,6 +721,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteAppointment(appointment: MedicalAppointmentEntity) {
         viewModelScope.launch {
             appointmentDao.delete(appointment)
+            com.pequecare.util.NotificationHelper.cancelReminder(getApplication(), appointment.id)
         }
     }
 

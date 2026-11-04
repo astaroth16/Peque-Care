@@ -14,8 +14,14 @@ interface TemperatureRecordDao {
     @Query("SELECT * FROM temperature_records WHERE childId = :childId ORDER BY date DESC, time DESC")
     fun getTemperatureRecords(childId: String): Flow<List<TemperatureRecordEntity>>
 
+    @Query("SELECT * FROM temperature_records WHERE childId = :childId ORDER BY date DESC, time DESC")
+    suspend fun getTemperatureRecordsOnce(childId: String): List<TemperatureRecordEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: TemperatureRecordEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<TemperatureRecordEntity>)
 
     @Update
     suspend fun update(record: TemperatureRecordEntity)

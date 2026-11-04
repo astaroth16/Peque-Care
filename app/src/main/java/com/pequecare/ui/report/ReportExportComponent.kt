@@ -227,7 +227,7 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusDays(7).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("7 días", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            label = { Text("7 Días", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
@@ -238,7 +238,7 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusMonths(1).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("1 mes", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            label = { Text("1 Mes", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
@@ -249,7 +249,7 @@ fun ReportExportComponent(
                                 manualStartDate = today.minusMonths(3).toString()
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("3 meses", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            label = { Text("3 Meses", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
@@ -260,7 +260,7 @@ fun ReportExportComponent(
                                 manualStartDate = "2020-01-01"
                                 manualEndDate = today.toString()
                             },
-                            label = { Text("Todo", style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                            label = { Text("Todo", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
                             modifier = Modifier.weight(1f)
                         )
                     }

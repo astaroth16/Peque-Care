@@ -14,11 +14,17 @@ interface MealDao {
     @Query("SELECT * FROM meal_records WHERE childId = :childId ORDER BY date DESC, time DESC")
     fun getMealRecords(childId: String): Flow<List<MealEntity>>
 
+    @Query("SELECT * FROM meal_records WHERE childId = :childId ORDER BY date DESC, time DESC")
+    suspend fun getMealRecordsOnce(childId: String): List<MealEntity>
+
     @Query("SELECT SUM(waterGlasses) FROM meal_records WHERE childId = :childId AND date = :date")
     fun getTodayWater(childId: String, date: String): Flow<Int?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: MealEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<MealEntity>)
 
     @Update
     suspend fun update(record: MealEntity)

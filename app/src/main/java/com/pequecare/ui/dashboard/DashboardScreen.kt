@@ -1,10 +1,12 @@
 package com.pequecare.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,6 +18,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,16 +27,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -47,13 +59,32 @@ import com.pequecare.ui.theme.AmberAccent
 import com.pequecare.ui.theme.EmeraldSuccess
 import com.pequecare.ui.theme.RosePrimary
 
+fun formatChildAge(birthDateStr: String): String {
+    return try {
+        val birth = java.time.LocalDate.parse(birthDateStr)
+        val now = java.time.LocalDate.now()
+        val period = java.time.Period.between(birth, now)
+        when {
+            period.years > 0 -> "${period.years}a ${period.months}m"
+            period.months > 0 -> "${period.months} meses"
+            else -> "${period.days} días"
+        }
+    } catch (e: Exception) {
+        birthDateStr
+    }
+}
+
 @Composable
 fun DashboardScreen(
     profile: ChildProfileEntity?,
+    allProfiles: List<ChildProfileEntity> = emptyList(),
     latestGrowth: GrowthRecordEntity?,
     activeMedications: List<MedicationTreatmentEntity>,
     onAddRecordClick: (type: String) -> Unit,
-    onEditProfile: () -> Unit = {},
+    onSelectChild: (String) -> Unit = {},
+    onAddChildClick: () -> Unit = {},
+    onEditChildClick: (ChildProfileEntity) -> Unit = {},
+    onDeleteChildClick: (ChildProfileEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -71,10 +102,38 @@ fun DashboardScreen(
                 .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header del Niño/a y Saludo
-            ChildHeaderCard(profile = profile, onEditProfile = onEditProfile)
+            // Sección de Microfichas de Niños (si hay niños registrados)
+            if (allProfiles.isNotEmpty()) {
+                ChildrenSelectorSection(
+                    profiles = allProfiles,
+                    activeProfileId = profile?.id,
+                    onSelectChild = onSelectChild,
+                    onAddChildClick = onAddChildClick,
+                    onEditChildClick = onEditChildClick,
+                    onDeleteChildClick = onDeleteChildClick
+                )
+            } else {
+                Card(
+                    onClick = onAddChildClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text("👶", fontSize = 32.sp)
+                        Column {
+                            Text("¡Bienvenido a PequeCare!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Toca aquí para registrar a tu primer peque", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
 
-            // Resumen de Crecimiento OMS
+            // Resumen de Crecimiento
             GrowthSummaryCard(
                 latestGrowth = latestGrowth,
                 onAddGrowth = { onAddRecordClick("growth") }
@@ -93,55 +152,146 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun ChildHeaderCard(
-    profile: ChildProfileEntity?,
-    onEditProfile: () -> Unit
+private fun ChildrenSelectorSection(
+    profiles: List<ChildProfileEntity>,
+    activeProfileId: String?,
+    onSelectChild: (String) -> Unit,
+    onAddChildClick: () -> Unit,
+    onEditChildClick: (ChildProfileEntity) -> Unit,
+    onDeleteChildClick: (ChildProfileEntity) -> Unit
 ) {
-    Card(
-        onClick = onEditProfile,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(RosePrimary, AmberAccent)
-                    )
-                )
-                .padding(20.dp)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.25f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (profile?.gender == "male") "👦" else "👧",
-                            fontSize = 28.sp
-                        )
-                    }
-                }
+            Text(
+                text = "👶 Mis Peques (${profiles.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (!profile?.name.isNullOrBlank()) "¡Hola, ${profile?.name}!" else "¡Bienvenido a PequeCare!",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White
-                    )
-                    Text(
-                        text = if (!profile?.birthDate.isNullOrBlank()) "Fecha Nac.: ${profile?.birthDate} • Toca para editar" else "👉 Toca aquí para registrar al niño/a",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (profile == null) FontWeight.Bold else FontWeight.Normal,
-                        color = Color.White.copy(alpha = 0.95f)
-                    )
+            TextButton(onClick = onAddChildClick) {
+                Text("➕ Añadir Peque", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(vertical = 4.dp)
+        ) {
+            items(profiles, key = { it.id }) { child ->
+                val isSelected = child.id == activeProfileId
+                var menuExpanded by remember { mutableStateOf(false) }
+
+                Card(
+                    onClick = {
+                        if (isSelected) onEditChildClick(child)
+                        else onSelectChild(child.id)
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.surface
+                    ),
+                    border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp)
+                ) {
+                    Box(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(44.dp),
+                                shape = CircleShape,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = if (child.gender == "male") "👦" else "👧",
+                                        fontSize = 22.sp
+                                    )
+                                }
+                            }
+
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = child.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isSelected) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Text(
+                                                text = "ACTIVO",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 9.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = formatChildAge(child.birthDate),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Box {
+                                IconButton(
+                                    onClick = { menuExpanded = true },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Opciones de ${child.name}",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("✏️ Editar Perfil") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onEditChildClick(child)
+                                        }
+                                    )
+                                    if (profiles.size > 1) {
+                                        DropdownMenuItem(
+                                            text = { Text("🗑️ Eliminar", color = MaterialTheme.colorScheme.error) },
+                                            onClick = {
+                                                menuExpanded = false
+                                                onDeleteChildClick(child)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -180,14 +330,12 @@ private fun GrowthSummaryCard(
                     )
                 }
 
-                Button(
-                    onClick = onAddGrowth,
-                    colors = ButtonDefaults.buttonColors(containerColor = RosePrimary),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Registrar", style = MaterialTheme.typography.labelMedium)
+                IconButton(onClick = onAddGrowth) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Añadir Crecimiento",
+                        tint = RosePrimary
+                    )
                 }
             }
 

@@ -94,15 +94,15 @@ fun RegisterChildDialog(
         clinic: String
     ) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialProfile?.name ?: "") }
-    var lastName by remember { mutableStateOf(initialProfile?.lastName ?: "") }
-    var birthDate by remember { mutableStateOf(initialProfile?.birthDate ?: "2024-01-15") }
-    var gender by remember { mutableStateOf(initialProfile?.gender ?: "female") }
-    var bloodType by remember { mutableStateOf(initialProfile?.bloodType ?: "O+") }
-    var allergies by remember { mutableStateOf(initialProfile?.allergies ?: "") }
-    var pediatrician by remember { mutableStateOf(initialProfile?.pediatricianName ?: "") }
-    var phone by remember { mutableStateOf(initialProfile?.pediatricianPhone ?: "") }
-    var clinic by remember { mutableStateOf(initialProfile?.clinicName ?: "") }
+    var name by remember(initialProfile) { mutableStateOf(initialProfile?.name ?: "") }
+    var lastName by remember(initialProfile) { mutableStateOf(initialProfile?.lastName ?: "") }
+    var birthDate by remember(initialProfile) { mutableStateOf(initialProfile?.birthDate ?: "2024-01-15") }
+    var gender by remember(initialProfile) { mutableStateOf(initialProfile?.gender ?: "female") }
+    var bloodType by remember(initialProfile) { mutableStateOf(initialProfile?.bloodType ?: "O+") }
+    var allergies by remember(initialProfile) { mutableStateOf(initialProfile?.allergies ?: "") }
+    var pediatrician by remember(initialProfile) { mutableStateOf(initialProfile?.pediatricianName ?: "") }
+    var phone by remember(initialProfile) { mutableStateOf(initialProfile?.pediatricianPhone ?: "") }
+    var clinic by remember(initialProfile) { mutableStateOf(initialProfile?.clinicName ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -214,7 +214,7 @@ fun AddGrowthDialog(
     val today = LocalDate.now().toString()
 
     // Formateo inicial del peso con decimales para gramos
-    var weightText by remember {
+    var weightText by remember(initialRecord) {
         mutableStateOf(
             initialRecord?.let {
                 String.format(Locale.US, "%.3f", it.weightKg).trimEnd('0').trimEnd('.')
@@ -232,11 +232,11 @@ fun AddGrowthDialog(
     }
 
     val defaultHeight = initialRecord?.heightCm ?: 75.0
-    var selectedHeight by remember { mutableDoubleStateOf(defaultHeight) }
+    var selectedHeight by remember(initialRecord) { mutableDoubleStateOf(defaultHeight) }
 
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(initialRecord) {
         val index = heightList.indexOfFirst { kotlin.math.abs(it - defaultHeight) < 0.25 }
         if (index >= 0) {
             val scrollTarget = (index - 2).coerceAtLeast(0)
@@ -244,8 +244,8 @@ fun AddGrowthDialog(
         }
     }
 
-    var dateText by remember { mutableStateOf(initialRecord?.date ?: today) }
-    var notesText by remember { mutableStateOf(initialRecord?.notes ?: "") }
+    var dateText by remember(initialRecord) { mutableStateOf(initialRecord?.date ?: today) }
+    var notesText by remember(initialRecord) { mutableStateOf(initialRecord?.notes ?: "") }
 
     // Cálculo dinámico de peso y gramos
     val currentWeight = weightText.replace(',', '.').toDoubleOrNull() ?: 0.0
@@ -548,21 +548,21 @@ fun AddMedicationDialog(
         notes: String?
     ) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialRecord?.name ?: "") }
-    var formula by remember { mutableStateOf(initialRecord?.formula ?: "") }
-    var dosage by remember { mutableStateOf(initialRecord?.dosage ?: "") }
-    var startDate by remember { mutableStateOf(initialRecord?.startDate ?: LocalDate.now().toString()) }
-    var startTime by remember { mutableStateOf(initialRecord?.startTime ?: "08:00") }
-    var frequencyHours by remember { mutableStateOf(initialRecord?.frequencyHours ?: 8) }
-    var frequencyMinutes by remember { mutableStateOf(initialRecord?.frequencyMinutes ?: 0) }
-    var durationText by remember { mutableStateOf(initialRecord?.durationDays?.toString() ?: "7") }
-    var status by remember {
+    var name by remember(initialRecord) { mutableStateOf(initialRecord?.name ?: "") }
+    var formula by remember(initialRecord) { mutableStateOf(initialRecord?.formula ?: "") }
+    var dosage by remember(initialRecord) { mutableStateOf(initialRecord?.dosage ?: "") }
+    var startDate by remember(initialRecord) { mutableStateOf(initialRecord?.startDate ?: LocalDate.now().toString()) }
+    var startTime by remember(initialRecord) { mutableStateOf(initialRecord?.startTime ?: "08:00") }
+    var frequencyHours by remember(initialRecord) { mutableStateOf(initialRecord?.frequencyHours ?: 8) }
+    var frequencyMinutes by remember(initialRecord) { mutableStateOf(initialRecord?.frequencyMinutes ?: 0) }
+    var durationText by remember(initialRecord) { mutableStateOf(initialRecord?.durationDays?.toString() ?: "7") }
+    var status by remember(initialRecord) {
         mutableStateOf(
             if (initialRecord?.status?.uppercase() == "CULMINADO" || initialRecord?.status?.uppercase() == "COMPLETADO") "CULMINADO" else "ACTIVO"
         )
     }
-    var notifyMedication by remember { mutableStateOf(true) }
-    var notes by remember { mutableStateOf(initialRecord?.notes ?: "") }
+    var notifyMedication by remember(initialRecord) { mutableStateOf(true) }
+    var notes by remember(initialRecord) { mutableStateOf(initialRecord?.notes ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -756,9 +756,9 @@ fun AddTemperatureDialog(
     onDismissRequest: () -> Unit,
     onConfirm: (celsius: Double, symptoms: String, medicationGiven: String?) -> Unit
 ) {
-    var celsiusText by remember { mutableStateOf(initialRecord?.celsius?.toString() ?: "38.0") }
-    var symptoms by remember { mutableStateOf(initialRecord?.symptoms ?: "Fiebre") }
-    var medicationGiven by remember { mutableStateOf(initialRecord?.medicationGiven ?: "") }
+    var celsiusText by remember(initialRecord) { mutableStateOf(initialRecord?.celsius?.toString() ?: "38.0") }
+    var symptoms by remember(initialRecord) { mutableStateOf(initialRecord?.symptoms ?: "Fiebre") }
+    var medicationGiven by remember(initialRecord) { mutableStateOf(initialRecord?.medicationGiven ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -835,19 +835,19 @@ fun AddAppointmentDialog(
         notify24hBefore: Boolean
     ) -> Unit
 ) {
-    var doctor by remember { mutableStateOf(initialRecord?.doctorName ?: "") }
-    var specialty by remember { mutableStateOf(initialRecord?.specialty ?: "Pediatría") }
-    var clinic by remember { mutableStateOf(initialRecord?.clinic ?: "") }
-    var reason by remember { mutableStateOf(initialRecord?.reason ?: "Control sano") }
-    var date by remember { mutableStateOf(initialRecord?.date ?: LocalDate.now().plusDays(3).toString()) }
-    var time by remember { mutableStateOf(initialRecord?.time ?: "10:00") }
-    var status by remember {
+    var doctor by remember(initialRecord) { mutableStateOf(initialRecord?.doctorName ?: "") }
+    var specialty by remember(initialRecord) { mutableStateOf(initialRecord?.specialty ?: "Pediatría") }
+    var clinic by remember(initialRecord) { mutableStateOf(initialRecord?.clinic ?: "") }
+    var reason by remember(initialRecord) { mutableStateOf(initialRecord?.reason ?: "Control sano") }
+    var date by remember(initialRecord) { mutableStateOf(initialRecord?.date ?: LocalDate.now().plusDays(3).toString()) }
+    var time by remember(initialRecord) { mutableStateOf(initialRecord?.time ?: "10:00") }
+    var status by remember(initialRecord) {
         mutableStateOf(
             if (initialRecord?.status?.lowercase() == "pasado" || initialRecord?.status?.lowercase() == "completada") "pasado" else "pendiente"
         )
     }
-    var addToCalendar by remember { mutableStateOf(true) }
-    var notify24hBefore by remember { mutableStateOf(true) }
+    var addToCalendar by remember(initialRecord) { mutableStateOf(true) }
+    var notify24hBefore by remember(initialRecord) { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -1046,12 +1046,12 @@ fun AddSleepDialog(
     val nowTimeStr = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) }
     var selectedTab by remember { mutableStateOf(if (initialRecord != null) 1 else 0) } // 0: Tiempo Real, 1: Manual
 
-    var date by remember { mutableStateOf(initialRecord?.date ?: LocalDate.now().toString()) }
-    var startTime by remember { mutableStateOf(initialRecord?.startTime ?: nowTimeStr) }
-    var endTime by remember { mutableStateOf(initialRecord?.endTime ?: nowTimeStr) }
-    var type by remember { mutableStateOf(initialRecord?.type ?: "siesta") }
-    var quality by remember { mutableStateOf(initialRecord?.quality ?: "tranquilo") }
-    var notes by remember { mutableStateOf(initialRecord?.notes ?: "") }
+    var date by remember(initialRecord) { mutableStateOf(initialRecord?.date ?: LocalDate.now().toString()) }
+    var startTime by remember(initialRecord) { mutableStateOf(initialRecord?.startTime ?: nowTimeStr) }
+    var endTime by remember(initialRecord) { mutableStateOf(initialRecord?.endTime ?: nowTimeStr) }
+    var type by remember(initialRecord) { mutableStateOf(initialRecord?.type ?: "siesta") }
+    var quality by remember(initialRecord) { mutableStateOf(initialRecord?.quality ?: "tranquilo") }
+    var notes by remember(initialRecord) { mutableStateOf(initialRecord?.notes ?: "") }
 
     // Estado del temporizador / cronómetro en tiempo real
     var isRunning by remember { mutableStateOf(false) }
@@ -1312,9 +1312,9 @@ fun AddMealDialog(
     onDismissRequest: () -> Unit,
     onConfirm: (mealType: String, foods: String, appetite: String) -> Unit
 ) {
-    var mealType by remember { mutableStateOf(initialRecord?.mealType ?: "almuerzo") }
-    var foods by remember { mutableStateOf(initialRecord?.foods ?: "") }
-    var appetite by remember { mutableStateOf(initialRecord?.appetite ?: "bueno") }
+    var mealType by remember(initialRecord) { mutableStateOf(initialRecord?.mealType ?: "almuerzo") }
+    var foods by remember(initialRecord) { mutableStateOf(initialRecord?.foods ?: "") }
+    var appetite by remember(initialRecord) { mutableStateOf(initialRecord?.appetite ?: "bueno") }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -1410,9 +1410,9 @@ fun AddActivityDialog(
     onDismissRequest: () -> Unit,
     onConfirm: (title: String, category: String, durationMinutes: Int) -> Unit
 ) {
-    var title by remember { mutableStateOf(initialRecord?.title ?: "") }
-    var category by remember { mutableStateOf(initialRecord?.category ?: "juego al aire libre") }
-    var durationText by remember { mutableStateOf(initialRecord?.durationMinutes?.toString() ?: "30") }
+    var title by remember(initialRecord) { mutableStateOf(initialRecord?.title ?: "") }
+    var category by remember(initialRecord) { mutableStateOf(initialRecord?.category ?: "juego al aire libre") }
+    var durationText by remember(initialRecord) { mutableStateOf(initialRecord?.durationMinutes?.toString() ?: "30") }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,

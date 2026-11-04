@@ -1,12 +1,31 @@
 package com.pequecare.ui.navigation
 
+import android.app.Activity
+import android.content.Intent
 import android.widget.Toast
+import com.pequecare.MainActivity
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.pequecare.data.local.entity.ChildProfileEntity
+import com.pequecare.data.remote.google.DriveBackupItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.DateRange
@@ -90,6 +109,7 @@ fun PequeCareApp(
 ) {
     val context = LocalContext.current
     val profile by viewModel.childProfile.collectAsState()
+    val allProfiles by viewModel.allProfiles.collectAsState()
     val growthRecords by viewModel.growthRecords.collectAsState()
     val latestGrowth by viewModel.latestGrowth.collectAsState()
     val activeMedications by viewModel.activeMedications.collectAsState()
@@ -141,6 +161,9 @@ fun PequeCareApp(
 
     var selectedTab by remember { mutableStateOf(NavigationTab.RESUMEN) }
     var activeDialog by remember { mutableStateOf<String?>(null) }
+    var editingChildProfile by remember { mutableStateOf<ChildProfileEntity?>(null) }
+    var showBackupSelectionDialog by remember { mutableStateOf(false) }
+    var driveBackupItems by remember { mutableStateOf<List<DriveBackupItem>?>(null) }
     var editingGrowthRecord by remember { mutableStateOf<GrowthRecordEntity?>(null) }
     var editingMedication by remember { mutableStateOf<MedicationTreatmentEntity?>(null) }
     var editingAppointment by remember { mutableStateOf<MedicalAppointmentEntity?>(null) }
@@ -153,6 +176,7 @@ fun PequeCareApp(
     fun checkProfileAndOpen(dialogType: String) {
         if (profile == null) {
             Toast.makeText(context, "Primero debes registrar al niño/a", Toast.LENGTH_SHORT).show()
+            editingChildProfile = null
             activeDialog = "child_profile"
         } else {
             activeDialog = dialogType
@@ -177,20 +201,11 @@ fun PequeCareApp(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "🌸 PequeCare",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (profile != null) {
-                                Text(
-                                    text = "${profile?.name ?: ""} (${profile?.birthDate ?: ""})",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        Text(
+                            text = "🌸 PequeCare",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     },
                     actions = {
                         // Menú de Ajustes
@@ -216,7 +231,14 @@ fun PequeCareApp(
                             selected = selectedTab == tab,
                             onClick = { selectedTab = tab },
                             icon = { Icon(imageVector = tab.icon, contentDescription = tab.title) },
-                            label = { Text(text = tab.title) }
+                            label = {
+                                Text(
+                                    text = tab.title,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         )
                     }
                 }
@@ -230,10 +252,23 @@ fun PequeCareApp(
                 when (selectedTab) {
                     NavigationTab.RESUMEN -> DashboardScreen(
                         profile = profile,
+                        allProfiles = allProfiles,
                         latestGrowth = latestGrowth,
                         activeMedications = activeMedications,
                         onAddRecordClick = { type -> checkProfileAndOpen(type) },
-                        onEditProfile = { activeDialog = "child_profile" }
+                        onSelectChild = { childId -> viewModel.selectChild(childId) },
+                        onAddChildClick = {
+                            editingChildProfile = null
+                            activeDialog = "child_profile"
+                        },
+                        onEditChildClick = { child ->
+                            editingChildProfile = child
+                            activeDialog = "child_profile"
+                        },
+                        onDeleteChildClick = { child ->
+                            viewModel.deleteChildProfile(child)
+                            Toast.makeText(context, "Perfil de ${child.name} eliminado", Toast.LENGTH_SHORT).show()
+                        }
                     )
                     NavigationTab.CRECIMIENTO -> GrowthScreen(
                         growthRecords = growthRecords,
@@ -390,6 +425,7 @@ fun PequeCareApp(
                     onToggleDarkTheme = { viewModel.toggleDarkTheme() },
                     onEditProfileClick = {
                         showSettingsSheet = false
+                        editingChildProfile = profile
                         activeDialog = "child_profile"
                     },
                     onOpenReportsClick = {
@@ -413,7 +449,11 @@ fun PequeCareApp(
                     onBackupNowClick = {
                         val account = GoogleSignIn.getLastSignedInAccount(context)
                         if (account != null) {
-                            viewModel.backupNowToGoogleDrive(account)
+                            if (allProfiles.isEmpty()) {
+                                Toast.makeText(context, "No hay ningún peque registrado para respaldar", Toast.LENGTH_SHORT).show()
+                            } else {
+                                showBackupSelectionDialog = true
+                            }
                         } else {
                             launchGoogleSignIn()
                         }
@@ -421,8 +461,12 @@ fun PequeCareApp(
                     onRestoreBackupClick = {
                         val account = GoogleSignIn.getLastSignedInAccount(context)
                         if (account != null) {
-                            viewModel.restoreFromGoogleDrive(account) { success, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            viewModel.listDriveBackups(account) { items ->
+                                if (items.isEmpty()) {
+                                    Toast.makeText(context, "No se encontraron copias de seguridad en Google Drive", Toast.LENGTH_LONG).show()
+                                } else {
+                                    driveBackupItems = items
+                                }
                             }
                         } else {
                             launchGoogleSignIn()
@@ -439,10 +483,14 @@ fun PequeCareApp(
         when (activeDialog) {
             "child_profile" -> {
                 RegisterChildDialog(
-                    initialProfile = profile,
-                    onDismissRequest = { activeDialog = null },
+                    initialProfile = editingChildProfile,
+                    onDismissRequest = {
+                        activeDialog = null
+                        editingChildProfile = null
+                    },
                     onConfirm = { name, lastName, birthDate, gender, bloodType, allergies, pediatrician, phone, clinic ->
                         viewModel.saveChildProfile(
+                            childId = editingChildProfile?.id,
                             name = name,
                             lastName = lastName,
                             birthDate = birthDate,
@@ -454,6 +502,7 @@ fun PequeCareApp(
                             clinicName = clinic
                         )
                         activeDialog = null
+                        editingChildProfile = null
                         Toast.makeText(context, "Perfil de $name guardado", Toast.LENGTH_SHORT).show()
                     }
                 )
@@ -759,6 +808,166 @@ fun PequeCareApp(
                     }
                 )
             }
+        }
+
+        // Diálogo para seleccionar qué respaldar en Google Drive
+        if (showBackupSelectionDialog) {
+            val account = GoogleSignIn.getLastSignedInAccount(context)
+            AlertDialog(
+                onDismissRequest = { showBackupSelectionDialog = false },
+                title = {
+                    Text("Copia de Seguridad en Drive", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Selecciona qué deseas respaldar en tu nube de Google Drive:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // 1. Opción Copia Completa Familiar
+                        Surface(
+                            onClick = {
+                                showBackupSelectionDialog = false
+                                if (account != null) viewModel.backupNowToGoogleDrive(account)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text("📦", fontSize = 26.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Copia Completa Familiar", fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "Todos los niños (${allProfiles.size}) y su historial completo",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        // 2. Opciones Individuales por Niño
+                        allProfiles.forEach { child ->
+                            Surface(
+                                onClick = {
+                                    showBackupSelectionDialog = false
+                                    if (account != null) viewModel.backupChildToGoogleDrive(account, child)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(if (child.gender == "male") "👦" else "👧", fontSize = 26.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Ficha de ${child.name}", fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "Solo este peque con sus métricas y tratamientos",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showBackupSelectionDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        // Diálogo para seleccionar qué copia restaurar desde Google Drive
+        if (driveBackupItems != null) {
+            val account = GoogleSignIn.getLastSignedInAccount(context)
+            AlertDialog(
+                onDismissRequest = { driveBackupItems = null },
+                title = {
+                    Text("Restaurar desde Google Drive", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Se encontraron los siguientes respaldos en tu cuenta. Selecciona cuál deseas restaurar:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        driveBackupItems?.forEach { item ->
+                            Surface(
+                                onClick = {
+                                    val selectedItem = item
+                                    driveBackupItems = null
+                                    if (account != null) {
+                                        viewModel.restoreDriveBackupItem(account, selectedItem) { success, msg, isFull ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                            if (success && isFull) {
+                                                val activity = context as? Activity
+                                                val intent = Intent(context, MainActivity::class.java).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                                }
+                                                context.startActivity(intent)
+                                                activity?.finish()
+                                            }
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (item.isFullBackup) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(if (item.isFullBackup) "📦" else "🧒", fontSize = 26.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(item.title, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            item.subtitle,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { driveBackupItems = null }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
         }
     }
     }

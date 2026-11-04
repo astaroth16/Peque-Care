@@ -14,11 +14,17 @@ interface MedicalAppointmentDao {
     @Query("SELECT * FROM medical_appointments WHERE childId = :childId ORDER BY date DESC, time DESC")
     fun getAppointments(childId: String): Flow<List<MedicalAppointmentEntity>>
 
+    @Query("SELECT * FROM medical_appointments WHERE childId = :childId ORDER BY date DESC, time DESC")
+    suspend fun getAppointmentsOnce(childId: String): List<MedicalAppointmentEntity>
+
     @Query("SELECT * FROM medical_appointments WHERE id = :id LIMIT 1")
     suspend fun getAppointmentById(id: String): MedicalAppointmentEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(appointment: MedicalAppointmentEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(appointments: List<MedicalAppointmentEntity>)
 
     @Update
     suspend fun update(appointment: MedicalAppointmentEntity)

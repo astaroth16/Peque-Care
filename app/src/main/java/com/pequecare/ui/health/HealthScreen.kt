@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pequecare.data.local.entity.MedicalAppointmentEntity
 import com.pequecare.data.local.entity.MedicationTreatmentEntity
@@ -397,6 +398,7 @@ private fun AppointmentCard(
     onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val isPending = appt.status.lowercase() == "pendiente" || appt.status.lowercase() == "programada"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -405,107 +407,149 @@ private fun AppointmentCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Fila 1: Nombre del doctor (ocupa todo el ancho disponible) y botón de opciones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "🩺 ${appt.doctorName}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text = "🩺",
+                        style = MaterialTheme.typography.titleMedium
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "📅 ${appt.date} • ⏰ ${appt.time} hs",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = appt.doctorName.ifBlank { "Médico / Especialista" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val isPending = appt.status.lowercase() == "pendiente" || appt.status.lowercase() == "programada"
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isPending) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = if (isPending) "⏳ PENDIENTE" else "✔️ PASADO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isPending) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontWeight = FontWeight.Bold
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Opciones",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
                     ) {
-                        Text(
-                            text = appt.specialty.ifBlank { "Pediatría" },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontWeight = FontWeight.Bold
+                        DropdownMenuItem(
+                            text = { Text("✏️ Editar") },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("📋 Duplicar") },
+                            onClick = {
+                                menuExpanded = false
+                                onDuplicate()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🗑️ Eliminar", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
                         )
                     }
+                }
+            }
 
-                    Box {
-                        IconButton(onClick = { menuExpanded = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Opciones",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            Spacer(modifier = Modifier.height(8.dp))
 
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("✏️ Editar") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onEdit()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("📋 Duplicar") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onDuplicate()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("🗑️ Eliminar", color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    menuExpanded = false
-                                    onDelete()
-                                }
-                            )
-                        }
-                    }
+            // Fila 2: Etiquetas de estado y especialidad en su propia fila independiente
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isPending) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = if (isPending) "⏳ PENDIENTE" else "✔️ PASADO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isPending) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                ) {
+                    Text(
+                        text = appt.specialty.ifBlank { "Pediatría" },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Fila 3: Fecha y hora en una tarjeta/pill estilizada
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "📅 ${appt.date}   •   ⏰ ${appt.time} hs",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Fila 4: Lugar / Clínica y Motivo en dos columnas limpias
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                InfoColumn(label = "Lugar / Clínica", value = appt.clinic.ifBlank { "Consultorio" }, modifier = Modifier.weight(1f))
-                InfoColumn(label = "Motivo", value = appt.reason.ifBlank { "Control" }, modifier = Modifier.weight(1f))
+                InfoColumn(
+                    label = "Lugar / Clínica",
+                    value = appt.clinic.ifBlank { "Consultorio" },
+                    modifier = Modifier.weight(1f)
+                )
+                InfoColumn(
+                    label = "Motivo",
+                    value = appt.reason.ifBlank { "Control" },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             if (!appt.notes.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Nota: ${appt.notes}",
+                    text = "📝 Nota: ${appt.notes}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

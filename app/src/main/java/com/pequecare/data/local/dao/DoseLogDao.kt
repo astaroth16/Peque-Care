@@ -13,8 +13,14 @@ interface DoseLogDao {
     @Query("SELECT * FROM dose_logs WHERE treatmentId = :treatmentId ORDER BY timestamp DESC")
     fun getDoseLogs(treatmentId: String): Flow<List<DoseLogEntity>>
 
+    @Query("SELECT * FROM dose_logs WHERE treatmentId IN (:treatmentIds)")
+    suspend fun getDoseLogsForTreatmentsOnce(treatmentIds: List<String>): List<DoseLogEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: DoseLogEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(logs: List<DoseLogEntity>)
 
     @Delete
     suspend fun delete(log: DoseLogEntity)

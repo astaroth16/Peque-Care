@@ -14,11 +14,17 @@ interface GrowthRecordDao {
     @Query("SELECT * FROM growth_records WHERE childId = :childId ORDER BY date DESC")
     fun getAllGrowthRecords(childId: String): Flow<List<GrowthRecordEntity>>
 
+    @Query("SELECT * FROM growth_records WHERE childId = :childId ORDER BY date DESC")
+    suspend fun getAllGrowthRecordsOnce(childId: String): List<GrowthRecordEntity>
+
     @Query("SELECT * FROM growth_records WHERE childId = :childId ORDER BY date DESC LIMIT 1")
     fun getLatestGrowthRecord(childId: String): Flow<GrowthRecordEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: GrowthRecordEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<GrowthRecordEntity>)
 
     @Update
     suspend fun update(record: GrowthRecordEntity)

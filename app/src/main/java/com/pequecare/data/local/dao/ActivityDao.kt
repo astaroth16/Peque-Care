@@ -14,8 +14,14 @@ interface ActivityDao {
     @Query("SELECT * FROM activity_records WHERE childId = :childId ORDER BY date DESC, time DESC")
     fun getActivityRecords(childId: String): Flow<List<ActivityEntity>>
 
+    @Query("SELECT * FROM activity_records WHERE childId = :childId ORDER BY date DESC, time DESC")
+    suspend fun getActivityRecordsOnce(childId: String): List<ActivityEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: ActivityEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(records: List<ActivityEntity>)
 
     @Update
     suspend fun update(record: ActivityEntity)
