@@ -26,6 +26,12 @@ interface GrowthRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<GrowthRecordEntity>)
 
+    @Query("SELECT * FROM growth_records ORDER BY date DESC")
+    suspend fun getAllRecordsOnce(): List<GrowthRecordEntity>
+
+    @Query("DELETE FROM growth_records WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(record: GrowthRecordEntity)
 

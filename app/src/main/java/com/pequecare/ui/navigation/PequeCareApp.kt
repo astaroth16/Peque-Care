@@ -265,6 +265,10 @@ fun PequeCareApp(
                             editingChildProfile = child
                             activeDialog = "child_profile"
                         },
+                        onCloneChildClick = { child ->
+                            viewModel.cloneChildProfile(child)
+                            Toast.makeText(context, "Perfil de ${child.name} clonado para gemelo/a", Toast.LENGTH_SHORT).show()
+                        },
                         onDeleteChildClick = { child ->
                             viewModel.deleteChildProfile(child)
                             Toast.makeText(context, "Perfil de ${child.name} eliminado", Toast.LENGTH_SHORT).show()

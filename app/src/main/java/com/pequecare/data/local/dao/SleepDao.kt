@@ -23,6 +23,12 @@ interface SleepDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<SleepEntity>)
 
+    @Query("SELECT * FROM sleep_records ORDER BY date DESC, startTime DESC")
+    suspend fun getAllRecordsOnce(): List<SleepEntity>
+
+    @Query("DELETE FROM sleep_records WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(record: SleepEntity)
 

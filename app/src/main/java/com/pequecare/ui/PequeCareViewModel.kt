@@ -35,6 +35,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     private val childProfileDao = db.childProfileDao()
     private val growthRecordDao = db.growthRecordDao()
     private val medicationDao = db.medicationTreatmentDao()
+    private val doseLogDao = db.doseLogDao()
     private val tempDao = db.temperatureRecordDao()
     private val appointmentDao = db.medicalAppointmentDao()
     private val sleepDao = db.sleepDao()
@@ -240,13 +241,22 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _isBackupLoading.value = true
             val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
+            val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
 
             if (item.isFullBackup) {
                 _backupStateMessage.value = "Descargando base de datos familiar..."
-                val res = repo.downloadDatabaseBackup(account, item.fileId)
+                val res = repo.downloadDatabaseBackup(account, activeDb, item.fileId)
                 _isBackupLoading.value = false
                 if (res.isSuccess) {
-                    onCompleted(true, "Base de datos familiar restaurada con éxito", true)
+                    val restoredProfiles = res.getOrDefault(emptyList())
+                    if (restoredProfiles.isNotEmpty()) {
+                        val firstChildId = restoredProfiles.first().id
+                        selectChild(firstChildId)
+                    }
+                    val count = restoredProfiles.size
+                    val msg = "Base familiar restaurada ($count ${if (count == 1) "peque" else "peques"})"
+                    _backupStateMessage.value = msg
+                    onCompleted(true, msg, true)
                 } else {
                     val err = res.exceptionOrNull()?.localizedMessage ?: "Error al restaurar"
                     _backupStateMessage.value = err
@@ -254,7 +264,6 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             } else {
                 _backupStateMessage.value = "Descargando ficha de ${item.childName ?: "niño"}..."
-                val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
                 val res = repo.downloadChildBackup(account, item.fileId, activeDb)
                 _isBackupLoading.value = false
                 if (res.isSuccess) {
@@ -279,11 +288,16 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
             _isBackupLoading.value = true
             _backupStateMessage.value = "Descargando respaldo desde Google Drive..."
             val repo = com.pequecare.data.remote.google.GoogleDriveBackupRepository(getApplication())
-            val res = repo.downloadDatabaseBackup(account)
+            val activeDb = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
+            val res = repo.downloadDatabaseBackup(account, activeDb)
             _isBackupLoading.value = false
             if (res.isSuccess) {
-                _backupStateMessage.value = "Restauración completada. Reiniciando base de datos..."
-                onCompleted(true, "Datos restaurados con éxito")
+                val restoredProfiles = res.getOrDefault(emptyList())
+                if (restoredProfiles.isNotEmpty()) {
+                    selectChild(restoredProfiles.first().id)
+                }
+                _backupStateMessage.value = "Restauración completada con éxito"
+                onCompleted(true, "Datos familiares restaurados con éxito")
             } else {
                 val err = res.exceptionOrNull()?.localizedMessage ?: "No se encontró respaldo"
                 _backupStateMessage.value = "Error en restauración: $err"
@@ -307,6 +321,19 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         prefs.edit().putString("selected_child_id", childId).apply()
     }
 
+    fun cloneChildProfile(source: ChildProfileEntity) {
+        viewModelScope.launch {
+            val newId = UUID.randomUUID().toString()
+            val cloned = source.copy(
+                id = newId,
+                name = "${source.name} (Gemelo/a)",
+                notes = "Perfil clonado de ${source.name}"
+            )
+            childProfileDao.insertOrUpdate(cloned)
+            selectChild(newId)
+        }
+    }
+
     fun deleteChildProfile(profile: ChildProfileEntity) {
         viewModelScope.launch {
             // Cancelar alarmas programadas de tratamientos y citas de este peque
@@ -323,7 +350,26 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 e.printStackTrace()
             }
 
+            // Eliminar registros de este niño en todas las tablas
+            try {
+                growthRecordDao.deleteByChildId(profile.id)
+                val meds = medicationDao.getAllMedicationsOnce(profile.id)
+                if (meds.isNotEmpty()) {
+                    doseLogDao.deleteByTreatmentIds(meds.map { it.id })
+                }
+                medicationDao.deleteByChildId(profile.id)
+                appointmentDao.deleteByChildId(profile.id)
+                tempDao.deleteByChildId(profile.id)
+                sleepDao.deleteByChildId(profile.id)
+                mealDao.deleteByChildId(profile.id)
+                activityDao.deleteByChildId(profile.id)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Eliminar el perfil del niño
             childProfileDao.delete(profile)
+
             val remaining = childProfileDao.getAllChildProfilesOnce().filter { it.id != profile.id }
             val nextId = remaining.firstOrNull()?.id
             _selectedChildId.value = nextId
@@ -331,6 +377,9 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 prefs.edit().putString("selected_child_id", nextId).apply()
             } else {
                 prefs.edit().remove("selected_child_id").apply()
+                // Si ya no quedan niños registrados, purgar por completo la base de datos
+                val db = com.pequecare.data.local.db.PequeCareDatabase.getDatabase(getApplication())
+                db.clearAllTables()
             }
         }
     }
@@ -349,6 +398,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         notes: String? = null
     ) {
         viewModelScope.launch {
+            val isEditing = childId != null
+            val existing = if (isEditing) childProfileDao.getChildProfileByIdOnce(childId!!) else null
             val id = childId ?: UUID.randomUUID().toString()
             val profile = ChildProfileEntity(
                 id = id,
@@ -361,11 +412,12 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 pediatricianName = pediatricianName.trim(),
                 pediatricianPhone = pediatricianPhone.trim(),
                 clinicName = clinicName.trim(),
-                notes = notes?.trim()
+                insuranceNumber = existing?.insuranceNumber ?: "",
+                notes = notes?.trim() ?: existing?.notes,
+                avatarUrl = existing?.avatarUrl
             )
             childProfileDao.insertOrUpdate(profile)
-            _selectedChildId.value = id
-            prefs.edit().putString("selected_child_id", id).apply()
+            selectChild(id)
         }
     }
 

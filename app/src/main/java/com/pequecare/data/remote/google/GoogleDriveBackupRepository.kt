@@ -1,7 +1,7 @@
 package com.pequecare.data.remote.google
 
 import android.content.Context
-import androidx.room.RoomDatabase
+import androidx.room.withTransaction
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.FileContent
@@ -46,6 +46,23 @@ data class ChildBackupPackage(
 )
 
 /**
+ * Representa una copia completa de toda la familia y todos los registros médicos.
+ */
+data class FamilyBackupPackage(
+    val version: Int = 1,
+    val backupDate: String,
+    val profiles: List<ChildProfileEntity> = emptyList(),
+    val growthRecords: List<GrowthRecordEntity> = emptyList(),
+    val medications: List<MedicationTreatmentEntity> = emptyList(),
+    val doseLogs: List<DoseLogEntity> = emptyList(),
+    val appointments: List<MedicalAppointmentEntity> = emptyList(),
+    val temperatures: List<TemperatureRecordEntity> = emptyList(),
+    val sleepRecords: List<SleepEntity> = emptyList(),
+    val mealRecords: List<MealEntity> = emptyList(),
+    val activityRecords: List<ActivityEntity> = emptyList()
+)
+
+/**
  * Elemento de respaldo detectado en Google Drive.
  */
 data class DriveBackupItem(
@@ -61,9 +78,8 @@ data class DriveBackupItem(
 class GoogleDriveBackupRepository(private val context: Context) {
 
     companion object {
-        private const val BACKUP_FILE_NAME = "pequecare_backup.db"
-        private const val DB_NAME = "pequecare_database"
-        private const val MIME_TYPE_SQLITE = "application/x-sqlite3"
+        private const val FAMILY_BACKUP_FILE_NAME = "pequecare_family_backup.json"
+        private const val LEGACY_BACKUP_FILE_NAME = "pequecare_backup.db"
         private const val MIME_TYPE_JSON = "application/json"
         private const val APP_DATA_FOLDER = "appDataFolder"
     }
@@ -104,12 +120,12 @@ class GoogleDriveBackupRepository(private val context: Context) {
             result.files?.forEach { file ->
                 val name = file.name ?: ""
                 val modDate = file.modifiedTime?.toStringRfc3339()?.take(10) ?: "Fecha desconocida"
-                if (name == BACKUP_FILE_NAME || name.startsWith("pequecare_backup_full")) {
+                if (name == FAMILY_BACKUP_FILE_NAME || name == LEGACY_BACKUP_FILE_NAME || name.startsWith("pequecare_family") || name.startsWith("pequecare_backup")) {
                     items.add(
                         DriveBackupItem(
                             fileId = file.id,
                             title = "📦 Copia Completa Familiar",
-                            subtitle = file.description ?: "Base de datos completa con todos los niños ($modDate)",
+                            subtitle = file.description ?: "Base de datos completa de la familia ($modDate)",
                             date = modDate,
                             isFullBackup = true
                         )
@@ -136,40 +152,57 @@ class GoogleDriveBackupRepository(private val context: Context) {
     }
 
     /**
-     * Sube el archivo de la base de datos Room a la carpeta oculta de la app en Google Drive (AppFolder).
+     * Sube una copia familiar completa en formato JSON a Google Drive.
      */
     suspend fun uploadDatabaseBackup(
         account: GoogleSignInAccount,
-        roomDatabase: RoomDatabase
+        roomDatabase: PequeCareDatabase
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // 1. Ejecutar WAL Checkpoint con TRUNCATE para asegurar que todos los datos se consoliden en el archivo .db
-            checkpointDatabase(roomDatabase)
+            val profiles = roomDatabase.childProfileDao().getAllChildProfilesOnce()
+            val growth = roomDatabase.growthRecordDao().getAllRecordsOnce()
+            val meds = roomDatabase.medicationTreatmentDao().getAllRecordsOnce()
+            val doseLogs = roomDatabase.doseLogDao().getAllRecordsOnce()
+            val appointments = roomDatabase.medicalAppointmentDao().getAllRecordsOnce()
+            val temps = roomDatabase.temperatureRecordDao().getAllRecordsOnce()
+            val sleeps = roomDatabase.sleepDao().getAllRecordsOnce()
+            val meals = roomDatabase.mealDao().getAllRecordsOnce()
+            val activities = roomDatabase.activityDao().getAllRecordsOnce()
 
-            val dbFile = context.getDatabasePath(DB_NAME)
-            if (!dbFile.exists() || dbFile.length() == 0L) {
-                return@withContext Result.failure(Exception("El archivo local de base de datos no existe o está vacío."))
-            }
+            val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            val backupPackage = FamilyBackupPackage(
+                version = 1,
+                backupDate = nowStr,
+                profiles = profiles,
+                growthRecords = growth,
+                medications = meds,
+                doseLogs = doseLogs,
+                appointments = appointments,
+                temperatures = temps,
+                sleepRecords = sleeps,
+                mealRecords = meals,
+                activityRecords = activities
+            )
 
-            // 2. Copiar a un archivo temporal para subir de forma segura sin bloqueos de concurrencia
-            val tempBackupFile = File(context.cacheDir, "pequecare_backup_upload.db")
-            dbFile.copyTo(tempBackupFile, overwrite = true)
+            val jsonString = Gson().toJson(backupPackage)
+            val tempFile = File(context.cacheDir, "family_backup_upload.json")
+            tempFile.writeText(jsonString)
 
             val driveService = getDriveService(account)
-            val existingFileId = findBackupFileId(driveService)
-            val mediaContent = FileContent(MIME_TYPE_SQLITE, tempBackupFile)
-            val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-            val desc = "Copia familiar completa • $nowStr"
+            val existingFileId = findFamilyBackupFileId(driveService) ?: findLegacyBackupFileId(driveService)
+            val mediaContent = FileContent(MIME_TYPE_JSON, tempFile)
+            val desc = "Copia familiar completa (${profiles.size} peques) • $nowStr"
 
             val resultId = if (existingFileId != null) {
                 val fileMetadata = com.google.api.services.drive.model.File().apply {
+                    name = FAMILY_BACKUP_FILE_NAME
                     description = desc
                 }
                 val updatedFile = driveService.files().update(existingFileId, fileMetadata, mediaContent).execute()
                 updatedFile.id
             } else {
                 val fileMetadata = com.google.api.services.drive.model.File().apply {
-                    name = BACKUP_FILE_NAME
+                    name = FAMILY_BACKUP_FILE_NAME
                     description = desc
                     parents = Collections.singletonList(APP_DATA_FOLDER)
                 }
@@ -179,11 +212,11 @@ class GoogleDriveBackupRepository(private val context: Context) {
                 createdFile.id
             }
 
-            tempBackupFile.delete()
-            android.util.Log.d("DriveBackup", "Respaldo completo subido exitosamente. File ID: $resultId")
+            tempFile.delete()
+            android.util.Log.d("DriveBackup", "Respaldo familiar subido exitosamente. File ID: $resultId")
             Result.success(resultId)
         } catch (e: Exception) {
-            android.util.Log.e("DriveBackup", "Error al subir respaldo a Google Drive", e)
+            android.util.Log.e("DriveBackup", "Error al subir respaldo familiar a Google Drive", e)
             Result.failure(e)
         }
     }
@@ -260,19 +293,20 @@ class GoogleDriveBackupRepository(private val context: Context) {
     }
 
     /**
-     * Descarga la última copia de seguridad completa o una específica por ID y sobreescribe el archivo SQLite local.
+     * Descarga e importa la copia de seguridad completa familiar desde Google Drive usando Room.
      */
     suspend fun downloadDatabaseBackup(
         account: GoogleSignInAccount,
+        roomDatabase: PequeCareDatabase,
         targetFileId: String? = null
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<List<ChildProfileEntity>> = withContext(Dispatchers.IO) {
         try {
             val driveService = getDriveService(account)
 
-            val fileId = targetFileId ?: findBackupFileId(driveService)
+            val fileId = targetFileId ?: findFamilyBackupFileId(driveService) ?: findLegacyBackupFileId(driveService)
                 ?: return@withContext Result.failure(Exception("No se encontró ningún respaldo completo en Google Drive."))
 
-            val tempDownloadFile = File(context.cacheDir, "pequecare_download.db")
+            val tempDownloadFile = File(context.cacheDir, "pequecare_download.tmp")
             FileOutputStream(tempDownloadFile).use { outputStream ->
                 driveService.files().get(fileId).executeMediaAndDownloadTo(outputStream)
             }
@@ -282,22 +316,72 @@ class GoogleDriveBackupRepository(private val context: Context) {
                 return@withContext Result.failure(Exception("El archivo descargado de Google Drive está vacío o dañado."))
             }
 
-            PequeCareDatabase.closeDatabase()
-
-            val targetDbFile = context.getDatabasePath(DB_NAME)
-            tempDownloadFile.copyTo(targetDbFile, overwrite = true)
+            val content = tempDownloadFile.readText()
             tempDownloadFile.delete()
 
-            context.getDatabasePath("$DB_NAME-wal").delete()
-            context.getDatabasePath("$DB_NAME-shm").delete()
+            val pkg = try {
+                Gson().fromJson(content, FamilyBackupPackage::class.java)
+            } catch (e: Exception) {
+                null
+            }
 
-            val restoredDb = PequeCareDatabase.getDatabase(context)
-            val checkCursor = restoredDb.openHelper.readableDatabase.query("SELECT count(*) FROM child_profiles")
-            val count = if (checkCursor.moveToFirst()) checkCursor.getInt(0) else 0
-            checkCursor.close()
-            android.util.Log.d("DriveBackup", "Base de datos restaurada. Niños encontrados: $count")
+            if (pkg != null && (pkg.profiles.isNotEmpty() || pkg.growthRecords.isNotEmpty())) {
+                roomDatabase.withTransaction {
+                    if (pkg.profiles.isNotEmpty()) {
+                        roomDatabase.childProfileDao().upsertAll(pkg.profiles)
+                    }
+                    if (pkg.growthRecords.isNotEmpty()) {
+                        roomDatabase.growthRecordDao().insertAll(pkg.growthRecords)
+                    }
+                    if (pkg.medications.isNotEmpty()) {
+                        roomDatabase.medicationTreatmentDao().insertAll(pkg.medications)
+                    }
+                    if (pkg.doseLogs.isNotEmpty()) {
+                        roomDatabase.doseLogDao().insertAll(pkg.doseLogs)
+                    }
+                    if (pkg.appointments.isNotEmpty()) {
+                        roomDatabase.medicalAppointmentDao().insertAll(pkg.appointments)
+                    }
+                    if (pkg.temperatures.isNotEmpty()) {
+                        roomDatabase.temperatureRecordDao().insertAll(pkg.temperatures)
+                    }
+                    if (pkg.sleepRecords.isNotEmpty()) {
+                        roomDatabase.sleepDao().insertAll(pkg.sleepRecords)
+                    }
+                    if (pkg.mealRecords.isNotEmpty()) {
+                        roomDatabase.mealDao().insertAll(pkg.mealRecords)
+                    }
+                    if (pkg.activityRecords.isNotEmpty()) {
+                        roomDatabase.activityDao().insertAll(pkg.activityRecords)
+                    }
+                }
 
-            Result.success(Unit)
+                android.util.Log.d("DriveBackup", "Base familiar restaurada exitosamente vía Room: ${pkg.profiles.size} peques")
+                Result.success(pkg.profiles)
+            } else {
+                // Posible archivo de respaldo individual
+                val singlePkg = try {
+                    Gson().fromJson(content, ChildBackupPackage::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+                if (singlePkg != null && singlePkg.profile != null) {
+                    roomDatabase.withTransaction {
+                        roomDatabase.childProfileDao().insertOrUpdate(singlePkg.profile)
+                        if (singlePkg.growthRecords.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(singlePkg.growthRecords)
+                        if (singlePkg.medications.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(singlePkg.medications)
+                        if (singlePkg.doseLogs.isNotEmpty()) roomDatabase.doseLogDao().insertAll(singlePkg.doseLogs)
+                        if (singlePkg.appointments.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(singlePkg.appointments)
+                        if (singlePkg.temperatures.isNotEmpty()) roomDatabase.temperatureRecordDao().insertAll(singlePkg.temperatures)
+                        if (singlePkg.sleepRecords.isNotEmpty()) roomDatabase.sleepDao().insertAll(singlePkg.sleepRecords)
+                        if (singlePkg.mealRecords.isNotEmpty()) roomDatabase.mealDao().insertAll(singlePkg.mealRecords)
+                        if (singlePkg.activityRecords.isNotEmpty()) roomDatabase.activityDao().insertAll(singlePkg.activityRecords)
+                    }
+                    Result.success(listOf(singlePkg.profile))
+                } else {
+                    Result.failure(Exception("El archivo descargado no contiene un formato de respaldo JSON válido."))
+                }
+            }
         } catch (e: Exception) {
             android.util.Log.e("DriveBackup", "Error al restaurar respaldo de Google Drive", e)
             Result.failure(e)
@@ -325,16 +409,17 @@ class GoogleDriveBackupRepository(private val context: Context) {
             val pkg = Gson().fromJson(jsonString, ChildBackupPackage::class.java)
                 ?: return@withContext Result.failure(Exception("Archivo de respaldo de niño corrupto o no válido."))
 
-            // Insertar o actualizar todos los registros de este niño en Room
-            roomDatabase.childProfileDao().insertOrUpdate(pkg.profile)
-            if (pkg.growthRecords.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(pkg.growthRecords)
-            if (pkg.medications.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(pkg.medications)
-            if (pkg.doseLogs.isNotEmpty()) roomDatabase.doseLogDao().insertAll(pkg.doseLogs)
-            if (pkg.appointments.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(pkg.appointments)
-            if (pkg.temperatures.isNotEmpty()) roomDatabase.temperatureRecordDao().insertAll(pkg.temperatures)
-            if (pkg.sleepRecords.isNotEmpty()) roomDatabase.sleepDao().insertAll(pkg.sleepRecords)
-            if (pkg.mealRecords.isNotEmpty()) roomDatabase.mealDao().insertAll(pkg.mealRecords)
-            if (pkg.activityRecords.isNotEmpty()) roomDatabase.activityDao().insertAll(pkg.activityRecords)
+            roomDatabase.withTransaction {
+                roomDatabase.childProfileDao().insertOrUpdate(pkg.profile)
+                if (pkg.growthRecords.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(pkg.growthRecords)
+                if (pkg.medications.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(pkg.medications)
+                if (pkg.doseLogs.isNotEmpty()) roomDatabase.doseLogDao().insertAll(pkg.doseLogs)
+                if (pkg.appointments.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(pkg.appointments)
+                if (pkg.temperatures.isNotEmpty()) roomDatabase.temperatureRecordDao().insertAll(pkg.temperatures)
+                if (pkg.sleepRecords.isNotEmpty()) roomDatabase.sleepDao().insertAll(pkg.sleepRecords)
+                if (pkg.mealRecords.isNotEmpty()) roomDatabase.mealDao().insertAll(pkg.mealRecords)
+                if (pkg.activityRecords.isNotEmpty()) roomDatabase.activityDao().insertAll(pkg.activityRecords)
+            }
 
             android.util.Log.d("DriveBackup", "Ficha individual de ${pkg.profile.name} restaurada con éxito.")
             Result.success(pkg.profile)
@@ -344,8 +429,12 @@ class GoogleDriveBackupRepository(private val context: Context) {
         }
     }
 
-    private fun findBackupFileId(driveService: Drive): String? {
-        return findFileIdByName(driveService, BACKUP_FILE_NAME)
+    private fun findFamilyBackupFileId(driveService: Drive): String? {
+        return findFileIdByName(driveService, FAMILY_BACKUP_FILE_NAME)
+    }
+
+    private fun findLegacyBackupFileId(driveService: Drive): String? {
+        return findFileIdByName(driveService, LEGACY_BACKUP_FILE_NAME)
     }
 
     private fun findFileIdByName(driveService: Drive, fileName: String): String? {
@@ -358,21 +447,5 @@ class GoogleDriveBackupRepository(private val context: Context) {
 
         val files = result.files
         return if (!files.isNullOrEmpty()) files[0].id else null
-    }
-
-    private fun checkpointDatabase(roomDatabase: RoomDatabase) {
-        try {
-            val db = roomDatabase.openHelper.writableDatabase
-            val cursor = db.query("PRAGMA wal_checkpoint(TRUNCATE)")
-            if (cursor.moveToFirst()) {
-                val busy = cursor.getInt(0)
-                val log = cursor.getInt(1)
-                val checkpointed = cursor.getInt(2)
-                android.util.Log.d("DriveBackup", "wal_checkpoint TRUNCATE: busy=$busy, log=$log, checkpointed=$checkpointed")
-            }
-            cursor.close()
-        } catch (e: Exception) {
-            android.util.Log.e("DriveBackup", "Error ejecutando wal_checkpoint", e)
-        }
     }
 }

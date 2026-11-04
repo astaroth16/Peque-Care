@@ -176,6 +176,13 @@ fun RegisterChildDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Teléfono del pediatra") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
                     value = clinic,
                     onValueChange = { clinic = it },
                     label = { Text("Hospital / Clínica") },

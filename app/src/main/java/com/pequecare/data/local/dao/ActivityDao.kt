@@ -23,6 +23,12 @@ interface ActivityDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<ActivityEntity>)
 
+    @Query("SELECT * FROM activity_records ORDER BY date DESC, time DESC")
+    suspend fun getAllRecordsOnce(): List<ActivityEntity>
+
+    @Query("DELETE FROM activity_records WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(record: ActivityEntity)
 

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. Corazón protector / Foco central de cuidado amoroso (Rosa suave pastel) -->
+    <path
+        android:fillColor="#FCE4EC"
+        android:pathData="M 54,38
+                         C 51,26 31,26 31,43
+                         C 31,58 45,69 54,77
+                         C 63,69 77,58 77,43
+                         C 77,26 57,26 54,38 Z" />
+
+    <!-- 2. Hoja de crecimiento y salud pediátrica (Verde menta pastel) -->
+    <path
+        android:fillColor="#A5D6A7"
+        android:pathData="M 66,35
+                         C 66,25 78,24 80,33
+                         C 80,41 72,43 66,35 Z" />
+    <path
+        android:strokeColor="#66BB6A"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M 67,36 C 71,33 75,31 79,32" />
+
+    <!-- 3. Rostro tierno del bebé (Tono piel cálido pastel) -->
+    <!-- Círculo de la cabeza -->
+    <path
+        android:fillColor="#FFE0DB"
+        android:pathData="M 47,36
+                         A 14,14 0 1,1 46.9,36 Z" />
+
+    <!-- Gorrito / Cabello rizado suave del peque (RosePrimary #F08A9B) -->
+    <path
+        android:fillColor="#F08A9B"
+        android:pathData="M 33,48
+                         C 33,37 42,32 53,34
+                         C 59,35 61,40 61,48
+                         C 57,43 51,41 46,43
+                         C 40,45 36,44 33,48 Z" />
+
+    <!-- Pequeño pompom / lazo en la cabecita -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M 44,30
+                         A 3.5,3.5 0 1,1 43.9,30 Z" />
+
+    <!-- 4. Expresión serena y feliz (Ojos cerrados sonriendo) -->
+    <path
+        android:strokeColor="#5D4037"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M 39,47 C 40,49 42,49 43,47" />
+    <path
+        android:strokeColor="#5D4037"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M 47,47 C 48,49 50,49 51,47" />
+
+    <!-- Mejillas sonrosadas -->
+    <path
+        android:fillColor="#FF8A80"
+        android:fillAlpha="0.45"
+        android:pathData="M 38,51 A 2.5,2.5 0 1,1 37.9,51 Z" />
+    <path
+        android:fillColor="#FF8A80"
+        android:fillAlpha="0.45"
+        android:pathData="M 53,51 A 2.5,2.5 0 1,1 52.9,51 Z" />
+
+    <!-- Sonrisa dulce -->
+    <path
+        android:strokeColor="#E57373"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 43,53 C 44,55.5 46,55.5 47,53" />
+
+    <!-- 5. Brazo / Mano cuidadora que abraza y sostiene al bebé (Durazno suave) -->
+    <path
+        android:fillColor="#FFCC80"
+        android:pathData="M 35,62
+                         C 44,70 60,68 69,57
+                         C 71,54 67,52 64,55
+                         C 58,62 46,62 38,57
+                         C 35,55 33,59 35,62 Z" />
+
+    <!-- 6. Pequeño corazón flotante de amor arriba a la izquierda -->
+    <path
+        android:fillColor="#F06292"
+        android:pathData="M 28,34
+                         C 26,30 22,30 22,34
+                         C 22,38 28,42 28,42
+                         C 28,42 34,38 34,34
+                         C 34,30 30,30 28,34 Z" />
+</vector>

@@ -29,6 +29,12 @@ interface MedicationTreatmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(treatments: List<MedicationTreatmentEntity>)
 
+    @Query("SELECT * FROM medication_treatments ORDER BY startDate DESC")
+    suspend fun getAllRecordsOnce(): List<MedicationTreatmentEntity>
+
+    @Query("DELETE FROM medication_treatments WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(treatment: MedicationTreatmentEntity)
 

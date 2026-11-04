@@ -26,6 +26,12 @@ interface MealDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<MealEntity>)
 
+    @Query("SELECT * FROM meal_records ORDER BY date DESC, time DESC")
+    suspend fun getAllRecordsOnce(): List<MealEntity>
+
+    @Query("DELETE FROM meal_records WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(record: MealEntity)
 

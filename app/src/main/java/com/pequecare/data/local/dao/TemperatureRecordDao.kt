@@ -23,6 +23,12 @@ interface TemperatureRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<TemperatureRecordEntity>)
 
+    @Query("SELECT * FROM temperature_records ORDER BY date DESC, time DESC")
+    suspend fun getAllRecordsOnce(): List<TemperatureRecordEntity>
+
+    @Query("DELETE FROM temperature_records WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(record: TemperatureRecordEntity)
 

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -84,6 +85,7 @@ fun DashboardScreen(
     onSelectChild: (String) -> Unit = {},
     onAddChildClick: () -> Unit = {},
     onEditChildClick: (ChildProfileEntity) -> Unit = {},
+    onCloneChildClick: (ChildProfileEntity) -> Unit = {},
     onDeleteChildClick: (ChildProfileEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -110,6 +112,7 @@ fun DashboardScreen(
                     onSelectChild = onSelectChild,
                     onAddChildClick = onAddChildClick,
                     onEditChildClick = onEditChildClick,
+                    onCloneChildClick = onCloneChildClick,
                     onDeleteChildClick = onDeleteChildClick
                 )
             } else {
@@ -158,8 +161,50 @@ private fun ChildrenSelectorSection(
     onSelectChild: (String) -> Unit,
     onAddChildClick: () -> Unit,
     onEditChildClick: (ChildProfileEntity) -> Unit,
+    onCloneChildClick: (ChildProfileEntity) -> Unit,
     onDeleteChildClick: (ChildProfileEntity) -> Unit
 ) {
+    var childToDelete by remember { mutableStateOf<ChildProfileEntity?>(null) }
+
+    if (childToDelete != null) {
+        val child = childToDelete!!
+        val isOnlyOne = profiles.size <= 1
+        AlertDialog(
+            onDismissRequest = { childToDelete = null },
+            title = {
+                Text(
+                    text = if (isOnlyOne) "⚠️ ¿Eliminar único perfil?" else "🗑️ ¿Eliminar a ${child.name}?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    if (isOnlyOne)
+                        "Estás a punto de eliminar a ${child.name}. Al ser el único peque registrado, se vaciará toda la base de datos de la app para no dejar datos residuales."
+                    else
+                        "Se eliminará el perfil de ${child.name} y todos sus controles de crecimiento, medicamentos, turnos y rutinas."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val toDel = child
+                        childToDelete = null
+                        onDeleteChildClick(toDel)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(if (isOnlyOne) "Eliminar y vaciar app" else "Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { childToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -273,21 +318,26 @@ private fun ChildrenSelectorSection(
                                     onDismissRequest = { menuExpanded = false }
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("✏️ Editar Perfil") },
+                                        text = { Text("✏️ Editar información") },
                                         onClick = {
                                             menuExpanded = false
                                             onEditChildClick(child)
                                         }
                                     )
-                                    if (profiles.size > 1) {
-                                        DropdownMenuItem(
-                                            text = { Text("🗑️ Eliminar", color = MaterialTheme.colorScheme.error) },
-                                            onClick = {
-                                                menuExpanded = false
-                                                onDeleteChildClick(child)
-                                            }
-                                        )
-                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("👥 Clonar perfil (Gemelos)") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onCloneChildClick(child)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("🗑️ Eliminar perfil", color = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            childToDelete = child
+                                        }
+                                    )
                                 }
                             }
                         }

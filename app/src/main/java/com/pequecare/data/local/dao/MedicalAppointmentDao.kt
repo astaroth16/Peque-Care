@@ -26,6 +26,12 @@ interface MedicalAppointmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(appointments: List<MedicalAppointmentEntity>)
 
+    @Query("SELECT * FROM medical_appointments ORDER BY date DESC, time DESC")
+    suspend fun getAllRecordsOnce(): List<MedicalAppointmentEntity>
+
+    @Query("DELETE FROM medical_appointments WHERE childId = :childId")
+    suspend fun deleteByChildId(childId: String)
+
     @Update
     suspend fun update(appointment: MedicalAppointmentEntity)
 

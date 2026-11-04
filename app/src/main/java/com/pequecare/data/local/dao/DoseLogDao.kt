@@ -16,6 +16,12 @@ interface DoseLogDao {
     @Query("SELECT * FROM dose_logs WHERE treatmentId IN (:treatmentIds)")
     suspend fun getDoseLogsForTreatmentsOnce(treatmentIds: List<String>): List<DoseLogEntity>
 
+    @Query("SELECT * FROM dose_logs ORDER BY timestamp DESC")
+    suspend fun getAllRecordsOnce(): List<DoseLogEntity>
+
+    @Query("DELETE FROM dose_logs WHERE treatmentId IN (:treatmentIds)")
+    suspend fun deleteByTreatmentIds(treatmentIds: List<String>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: DoseLogEntity)
 
