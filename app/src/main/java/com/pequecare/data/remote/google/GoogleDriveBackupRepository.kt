@@ -21,6 +21,7 @@ import com.pequecare.data.local.entity.MedicalAppointmentEntity
 import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.SleepEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
+import com.pequecare.util.WhoGrowthStandards
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -379,9 +380,11 @@ class GoogleDriveBackupRepository(private val context: Context) {
             val meals = pkg.mealRecords ?: emptyList()
             val activities = pkg.activityRecords ?: emptyList()
 
+            val sanitizedGrowth = sanitizeAndAdaptGrowthRecords(growth, mapOf(child.id to child))
+
             roomDatabase.withTransaction {
                 roomDatabase.childProfileDao().insertOrUpdate(child)
-                if (growth.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(growth)
+                if (sanitizedGrowth.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(sanitizedGrowth)
                 if (meds.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(meds)
                 if (doseLogs.isNotEmpty()) roomDatabase.doseLogDao().insertAll(doseLogs)
                 if (appointments.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(appointments)
@@ -427,12 +430,15 @@ class GoogleDriveBackupRepository(private val context: Context) {
             val meals = familyPkg.mealRecords ?: emptyList()
             val activities = familyPkg.activityRecords ?: emptyList()
 
+            val profileMap = profiles.associateBy { it.id }
+            val sanitizedGrowth = sanitizeAndAdaptGrowthRecords(growth, profileMap)
+
             roomDatabase.withTransaction {
                 if (profiles.isNotEmpty()) {
                     roomDatabase.childProfileDao().upsertAll(profiles)
                 }
-                if (growth.isNotEmpty()) {
-                    roomDatabase.growthRecordDao().insertAll(growth)
+                if (sanitizedGrowth.isNotEmpty()) {
+                    roomDatabase.growthRecordDao().insertAll(sanitizedGrowth)
                 }
                 if (meds.isNotEmpty()) {
                     roomDatabase.medicationTreatmentDao().insertAll(meds)
@@ -479,9 +485,11 @@ class GoogleDriveBackupRepository(private val context: Context) {
             val meals = singlePkg.mealRecords ?: emptyList()
             val activities = singlePkg.activityRecords ?: emptyList()
 
+            val sanitizedGrowth = sanitizeAndAdaptGrowthRecords(growth, mapOf(child.id to child))
+
             roomDatabase.withTransaction {
                 roomDatabase.childProfileDao().insertOrUpdate(child)
-                if (growth.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(growth)
+                if (sanitizedGrowth.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(sanitizedGrowth)
                 if (meds.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(meds)
                 if (doseLogs.isNotEmpty()) roomDatabase.doseLogDao().insertAll(doseLogs)
                 if (appts.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(appts)
@@ -856,10 +864,13 @@ class GoogleDriveBackupRepository(private val context: Context) {
             }
 
             // Inserción limpia en Room
+            val profileMap = profiles.associateBy { it.id }
+            val sanitizedGrowth = sanitizeAndAdaptGrowthRecords(growthList, profileMap)
+
             runBlocking {
                 roomDatabase.withTransaction {
                     if (profiles.isNotEmpty()) roomDatabase.childProfileDao().upsertAll(profiles)
-                    if (growthList.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(growthList)
+                    if (sanitizedGrowth.isNotEmpty()) roomDatabase.growthRecordDao().insertAll(sanitizedGrowth)
                     if (medsList.isNotEmpty()) roomDatabase.medicationTreatmentDao().insertAll(medsList)
                     if (doseLogsList.isNotEmpty()) roomDatabase.doseLogDao().insertAll(doseLogsList)
                     if (apptsList.isNotEmpty()) roomDatabase.medicalAppointmentDao().insertAll(apptsList)
@@ -877,6 +888,39 @@ class GoogleDriveBackupRepository(private val context: Context) {
             Result.failure(e)
         } finally {
             sqliteDb?.close()
+        }
+    }
+
+    private fun sanitizeAndAdaptGrowthRecords(
+        records: List<GrowthRecordEntity>,
+        profiles: Map<String, ChildProfileEntity>
+    ): List<GrowthRecordEntity> {
+        return records.mapNotNull { record ->
+            val profile = profiles[record.childId] ?: return@mapNotNull null
+            // Eliminar registros corruptos o en conflicto (peso o talla <= 0)
+            if (record.weightKg <= 0.0 || record.heightCm <= 0.0) return@mapNotNull null
+
+            val ageMonths = WhoGrowthStandards.calculateAgeMonths(profile.birthDate, record.date)
+            val eval = WhoGrowthStandards.evaluate(
+                gender = profile.gender,
+                ageMonths = ageMonths,
+                weightKg = record.weightKg,
+                heightCm = record.heightCm,
+                headCircumferenceCm = record.headCircumferenceCm
+            )
+            record.copy(
+                ageMonths = ageMonths,
+                bmi = eval.bmi,
+                weightPercentile = eval.weightPercentile,
+                heightPercentile = eval.heightPercentile,
+                bmiPercentile = eval.bmiPercentile,
+                weightZScore = eval.weightZScore,
+                heightZScore = eval.heightZScore,
+                bmiZScore = eval.bmiZScore,
+                weightStatus = eval.weightStatus,
+                heightStatus = eval.heightStatus,
+                bmiStatus = eval.bmiStatus
+            )
         }
     }
 

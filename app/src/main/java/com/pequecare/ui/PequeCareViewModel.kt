@@ -105,6 +105,10 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    init {
+        recalculateGrowthRecordsWithArgentinaStandards()
+    }
+
     private val _isDarkTheme = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
@@ -435,7 +439,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 gender = profile.gender,
                 ageMonths = ageMonths,
                 weightKg = weightKg,
-                heightCm = heightCm
+                heightCm = heightCm,
+                headCircumferenceCm = headCircumferenceCm
             )
 
             val record = GrowthRecordEntity(
@@ -467,7 +472,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         weightKg: Double,
         heightCm: Double,
         date: String,
-        notes: String?
+        notes: String?,
+        headCircumferenceCm: Double? = record.headCircumferenceCm
     ) {
         viewModelScope.launch {
             val profile = childProfile.value ?: return@launch
@@ -476,7 +482,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 gender = profile.gender,
                 ageMonths = ageMonths,
                 weightKg = weightKg,
-                heightCm = heightCm
+                heightCm = heightCm,
+                headCircumferenceCm = headCircumferenceCm
             )
 
             val updated = record.copy(
@@ -484,7 +491,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 ageMonths = ageMonths,
                 weightKg = weightKg,
                 heightCm = heightCm,
-                headCircumferenceCm = null,
+                headCircumferenceCm = headCircumferenceCm,
                 bmi = eval.bmi,
                 weightPercentile = eval.weightPercentile,
                 heightPercentile = eval.heightPercentile,
@@ -510,7 +517,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 gender = profile.gender,
                 ageMonths = ageMonths,
                 weightKg = record.weightKg,
-                heightCm = record.heightCm
+                heightCm = record.heightCm,
+                headCircumferenceCm = record.headCircumferenceCm
             )
 
             val duplicated = GrowthRecordEntity(
@@ -520,7 +528,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                 ageMonths = ageMonths,
                 weightKg = record.weightKg,
                 heightCm = record.heightCm,
-                headCircumferenceCm = null,
+                headCircumferenceCm = record.headCircumferenceCm,
                 bmi = eval.bmi,
                 weightPercentile = eval.weightPercentile,
                 heightPercentile = eval.heightPercentile,
@@ -540,6 +548,66 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteGrowthRecord(record: GrowthRecordEntity) {
         viewModelScope.launch {
             growthRecordDao.delete(record)
+        }
+    }
+
+    private fun recalculateGrowthRecordsWithArgentinaStandards() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val profiles = childProfileDao.getAllChildProfilesOnce().associateBy { it.id }
+                val allGrowth = growthRecordDao.getAllRecordsOnce()
+                var updatedCount = 0
+                var deletedCount = 0
+
+                for (record in allGrowth) {
+                    val profile = profiles[record.childId]
+                    // Si el niño no existe o los datos son inválidos/inconsistentes (< 0 o nulos), eliminar por conflicto
+                    if (profile == null || record.weightKg <= 0.0 || record.heightCm <= 0.0) {
+                        growthRecordDao.delete(record)
+                        deletedCount++
+                        continue
+                    }
+
+                    val ageMonths = WhoGrowthStandards.calculateAgeMonths(profile.birthDate, record.date)
+                    val eval = WhoGrowthStandards.evaluate(
+                        gender = profile.gender,
+                        ageMonths = ageMonths,
+                        weightKg = record.weightKg,
+                        heightCm = record.heightCm,
+                        headCircumferenceCm = record.headCircumferenceCm
+                    )
+
+                    // Verificar si hubo cambios en percentiles, z-scores o clasificaciones de Argentina
+                    if (record.weightStatus != eval.weightStatus ||
+                        record.heightStatus != eval.heightStatus ||
+                        record.bmiStatus != eval.bmiStatus ||
+                        record.weightPercentile != eval.weightPercentile ||
+                        record.heightPercentile != eval.heightPercentile ||
+                        record.bmiPercentile != eval.bmiPercentile ||
+                        record.bmi != eval.bmi ||
+                        record.ageMonths != ageMonths
+                    ) {
+                        val updated = record.copy(
+                            ageMonths = ageMonths,
+                            bmi = eval.bmi,
+                            weightPercentile = eval.weightPercentile,
+                            heightPercentile = eval.heightPercentile,
+                            bmiPercentile = eval.bmiPercentile,
+                            weightZScore = eval.weightZScore,
+                            heightZScore = eval.heightZScore,
+                            bmiZScore = eval.bmiZScore,
+                            weightStatus = eval.weightStatus,
+                            heightStatus = eval.heightStatus,
+                            bmiStatus = eval.bmiStatus
+                        )
+                        growthRecordDao.update(updated)
+                        updatedCount++
+                    }
+                }
+                android.util.Log.d("PequeCare", "Estandares oficiales de Argentina aplicados. Actualizados: $updatedCount, Eliminados por conflicto: $deletedCount")
+            } catch (e: Exception) {
+                android.util.Log.e("PequeCare", "Error recalculando registros de crecimiento con estándares de Argentina", e)
+            }
         }
     }
 
