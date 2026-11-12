@@ -71,12 +71,18 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.pequecare.service.SleepTrackerService
 import com.pequecare.ui.components.PequeDatePickerField
 import com.pequecare.ui.components.PequeFrequencyPicker
 import com.pequecare.ui.components.PequeTimePickerField
+import com.pequecare.util.BatteryOptimizationHelper
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+
+private val HH_MM_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
 fun RegisterChildDialog(
@@ -1047,31 +1053,69 @@ fun AddAppointmentDialog(
 @Composable
 fun AddSleepDialog(
     initialRecord: SleepEntity? = null,
+    childId: String = "",
+    childName: String = "",
     onDismissRequest: () -> Unit,
     onConfirm: (startTime: String, endTime: String, type: String, quality: String, date: String, notes: String?) -> Unit
 ) {
-    val nowTimeStr = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) }
+    val context = LocalContext.current
+    val activeSleepState by SleepTrackerService.sleepState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        SleepTrackerService.loadStateFromPrefs(context)
+    }
+
+    val nowTimeStr = remember { LocalTime.now().format(HH_MM_FORMATTER) }
     var selectedTab by remember { mutableStateOf(if (initialRecord != null) 1 else 0) } // 0: Tiempo Real, 1: Manual
 
-    var date by remember(initialRecord) { mutableStateOf(initialRecord?.date ?: LocalDate.now().toString()) }
+    var date by remember(initialRecord) {
+        mutableStateOf(
+            initialRecord?.date
+                ?: if (activeSleepState.isRunning && activeSleepState.startDate.isNotBlank()) activeSleepState.startDate
+                else LocalDate.now().toString()
+        )
+    }
     var startTime by remember(initialRecord) { mutableStateOf(initialRecord?.startTime ?: nowTimeStr) }
     var endTime by remember(initialRecord) { mutableStateOf(initialRecord?.endTime ?: nowTimeStr) }
-    var type by remember(initialRecord) { mutableStateOf(initialRecord?.type ?: "siesta") }
-    var quality by remember(initialRecord) { mutableStateOf(initialRecord?.quality ?: "tranquilo") }
-    var notes by remember(initialRecord) { mutableStateOf(initialRecord?.notes ?: "") }
+    var type by remember(initialRecord) {
+        mutableStateOf(
+            initialRecord?.type
+                ?: if (activeSleepState.isRunning) activeSleepState.type else "siesta"
+        )
+    }
+    var quality by remember(initialRecord) {
+        mutableStateOf(
+            initialRecord?.quality
+                ?: if (activeSleepState.isRunning) activeSleepState.quality else "tranquilo"
+        )
+    }
+    var notes by remember(initialRecord) {
+        mutableStateOf(
+            initialRecord?.notes
+                ?: if (activeSleepState.isRunning) activeSleepState.notes else ""
+        )
+    }
 
-    // Estado del temporizador / cronómetro en tiempo real
-    var isRunning by remember { mutableStateOf(false) }
-    var isPaused by remember { mutableStateOf(false) }
-    var elapsedSeconds by remember { mutableStateOf(0L) }
-    var realStartTime by remember { mutableStateOf(nowTimeStr) }
+    val isRunning = activeSleepState.isRunning
+    val isPaused = activeSleepState.isPaused
+    val realStartTime = if (isRunning && activeSleepState.startTimeStr.isNotBlank()) {
+        activeSleepState.startTimeStr
+    } else {
+        nowTimeStr
+    }
 
-    LaunchedEffect(isRunning, isPaused) {
+    var elapsedSeconds by remember {
+        mutableStateOf(activeSleepState.currentElapsedSeconds())
+    }
+
+    // Solo actualiza la UI cada 1 segundo mientras este diálogo está visible en pantalla;
+    // en segundo plano no consume CPU porque calcula por diferencia de timestamps (epoch).
+    LaunchedEffect(isRunning, isPaused, activeSleepState.startEpochMs, activeSleepState.accumulatedSeconds) {
+        elapsedSeconds = activeSleepState.currentElapsedSeconds()
         if (isRunning && !isPaused) {
-            val baseTime = System.currentTimeMillis() - (elapsedSeconds * 1000L)
-            while (isRunning && !isPaused) {
-                elapsedSeconds = ((System.currentTimeMillis() - baseTime) / 1000L).coerceAtLeast(0L)
-                delay(1000)
+            while (true) {
+                elapsedSeconds = activeSleepState.currentElapsedSeconds()
+                delay(1000L)
             }
         }
     }
@@ -1079,7 +1123,9 @@ fun AddSleepDialog(
     val timerHours = elapsedSeconds / 3600
     val timerMinutes = (elapsedSeconds % 3600) / 60
     val timerSecs = elapsedSeconds % 60
-    val formattedTimer = String.format(Locale.US, "%02d:%02d:%02d", timerHours, timerMinutes, timerSecs)
+    val formattedTimer = remember(elapsedSeconds) {
+        String.format(Locale.US, "%02d:%02d:%02d", timerHours, timerMinutes, timerSecs)
+    }
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -1090,9 +1136,10 @@ fun AddSleepDialog(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Monitorea en tiempo real o ingresa horarios manualmente",
+                    text = if (isRunning) "🛡️ Contador protegido en 2do plano (no se cierra)"
+                    else "Monitorea en tiempo real o ingresa horarios manualmente",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
@@ -1134,18 +1181,24 @@ fun AddSleepDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = type == "siesta",
-                        onClick = { type = "siesta" },
+                        onClick = {
+                            type = "siesta"
+                            if (isRunning) SleepTrackerService.updateMetadata(context, type, quality, notes)
+                        },
                         label = { Text("Siesta") }
                     )
                     FilterChip(
                         selected = type == "noche",
-                        onClick = { type = "noche" },
+                        onClick = {
+                            type = "noche"
+                            if (isRunning) SleepTrackerService.updateMetadata(context, type, quality, notes)
+                        },
                         label = { Text("Noche") }
                     )
                 }
 
                 if (selectedTab == 0) {
-                    // --- MODO TIEMPO REAL CON CONTADOR ---
+                    // --- MODO TIEMPO REAL CON CONTADOR PERSISTENTE EN SEGUNDO PLANO ---
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
@@ -1161,7 +1214,7 @@ fun AddSleepDialog(
                             Text(
                                 text = when {
                                     !isRunning -> "Listo para medir el sueño"
-                                    isPaused -> "Temporizador en pausa"
+                                    isPaused -> "Temporizador en pausa (Inicio: $realStartTime hs)"
                                     else -> "Bebé durmiendo... (Inicio: $realStartTime hs)"
                                 },
                                 style = MaterialTheme.typography.labelMedium,
@@ -1178,64 +1231,111 @@ fun AddSleepDialog(
                                 letterSpacing = 2.sp
                             )
 
-                            // BOTONES DE CONTROL DEL CRONÓMETRO
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (!isRunning) {
-                                    Button(
-                                        onClick = {
-                                            isRunning = true
-                                            isPaused = false
-                                            elapsedSeconds = 0L
-                                            realStartTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                    ) {
-                                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Iniciar Sueño")
-                                    }
-                                } else {
-                                    if (!isPaused) {
-                                        Button(
-                                            onClick = { isPaused = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                                        ) {
-                                            Icon(imageVector = Icons.Default.Pause, contentDescription = null)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Pausar")
-                                        }
-                                    } else {
-                                        Button(
-                                            onClick = { isPaused = false },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Reanudar")
-                                        }
-                                    }
+                            if (isRunning) {
+                                Text(
+                                    text = "Puedes cerrar la app o apagar la pantalla: el contador seguirá activo en tus notificaciones.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
 
-                                    Button(
-                                        onClick = {
-                                            val currentNow = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-                                            onConfirm(
-                                                realStartTime,
-                                                currentNow,
-                                                type,
-                                                quality,
-                                                LocalDate.now().toString(),
-                                                notes.ifBlank { null }
-                                            )
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = RosePrimary)
+                            // BOTONES DE CONTROL DEL CRONÓMETRO
+                            if (!isRunning) {
+                                Button(
+                                    onClick = {
+                                        if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)) {
+                                            BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                                        }
+                                        SleepTrackerService.startTracking(
+                                            context = context,
+                                            childId = childId,
+                                            childName = childName,
+                                            type = type,
+                                            quality = quality,
+                                            notes = notes
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Iniciar Sueño", fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(imageVector = Icons.Default.Stop, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Despertó - Guardar")
+                                        if (!isPaused) {
+                                            Button(
+                                                onClick = { SleepTrackerService.pauseTracking(context) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(14.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                            ) {
+                                                Icon(imageVector = Icons.Default.Pause, contentDescription = null)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Pausar", maxLines = 1)
+                                            }
+                                        } else {
+                                            Button(
+                                                onClick = { SleepTrackerService.resumeTracking(context) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(14.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                            ) {
+                                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Reanudar", maxLines = 1)
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val stoppedState = SleepTrackerService.stopAndClearTracking(context)
+                                                val currentNow = LocalTime.now().format(HH_MM_FORMATTER)
+                                                val finalStart = stoppedState.startTimeStr.ifBlank { realStartTime }
+                                                val finalDate = stoppedState.startDate.ifBlank { LocalDate.now().toString() }
+                                                onConfirm(
+                                                    finalStart,
+                                                    currentNow,
+                                                    type,
+                                                    quality,
+                                                    finalDate,
+                                                    notes.ifBlank { null }
+                                                )
+                                            },
+                                            modifier = Modifier.weight(1.2f),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = RosePrimary)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Stop, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Guardar", maxLines = 1)
+                                        }
                                     }
+                                }
+                            }
+
+                            if (isRunning) {
+                                TextButton(
+                                    onClick = {
+                                        SleepTrackerService.stopAndClearTracking(context)
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Cancelar y descartar contador",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             }
                         }
@@ -1267,37 +1367,55 @@ fun AddSleepDialog(
                     }
                 }
 
-                // CALIDAD DEL SUEÑO
+                // CALIDAD DEL SUEÑO (Grilla 2x2 para evitar solapamiento de texto)
                 Text("Calidad del descanso:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf("tranquilo", "inquieto", "despertares frecuentes", "pesadillas").forEach { q ->
-                        FilterChip(
-                            selected = quality == q,
-                            onClick = { quality = q },
-                            label = { Text(q.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall) }
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        listOf("tranquilo" to "😌 Tranquilo", "inquieto" to "😣 Inquieto"),
+                        listOf("despertares frecuentes" to "🌙 Despertares", "pesadillas" to "💭 Pesadillas")
+                    ).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { (q, label) ->
+                                FilterChip(
+                                    selected = quality == q,
+                                    onClick = {
+                                        quality = q
+                                        if (isRunning) SleepTrackerService.updateMetadata(context, type, quality, notes)
+                                    },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
                 }
 
                 OutlinedTextField(
                     value = notes,
-                    onValueChange = { notes = it },
+                    onValueChange = {
+                        notes = it
+                        if (isRunning) SleepTrackerService.updateMetadata(context, type, quality, notes)
+                    },
                     label = { Text("Notas u observaciones (opcional)") },
-                    placeholder = { Text("Ej: Tomó teta antes de dormirse") },
+                    placeholder = { Text("Ej: Tomó leche antes de dormirse") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            if (selectedTab == 1 || !isRunning) {
+            if (selectedTab == 1) {
                 Button(
                     onClick = {
-                        val finalStart = if (selectedTab == 0 && isRunning) realStartTime else startTime
-                        val finalEnd = if (selectedTab == 0 && isRunning) LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) else endTime
-                        onConfirm(finalStart, finalEnd, type, quality, date, notes.ifBlank { null })
+                        onConfirm(startTime, endTime, type, quality, date, notes.ifBlank { null })
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RosePrimary)
                 ) {
@@ -1307,7 +1425,7 @@ fun AddSleepDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Cerrar")
+                Text(if (selectedTab == 0 && isRunning) "Minimizar (Sigue en 2do plano)" else "Cerrar")
             }
         }
     )
@@ -1336,8 +1454,8 @@ fun AddMealDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Tipo de comida:", style = MaterialTheme.typography.labelMedium)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Tipo de comida:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1374,18 +1492,25 @@ fun AddMealDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Apetito:", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    listOf("excelente" to "Excelente", "bueno" to "Bueno", "regular" to "Regular", "poco" to "Poco").forEach { (app, label) ->
-                        FilterChip(
-                            selected = appetite.lowercase() == app,
-                            onClick = { appetite = app },
-                            label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
-                            modifier = Modifier.weight(1f)
-                        )
+                Text("Apetito:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        listOf("excelente" to "😋 Excelente", "bueno" to "🙂 Bueno"),
+                        listOf("regular" to "😐 Regular", "poco" to "😕 Poco")
+                    ).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { (app, label) ->
+                                FilterChip(
+                                    selected = appetite.lowercase() == app,
+                                    onClick = { appetite = app },
+                                    label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
                 }
             }

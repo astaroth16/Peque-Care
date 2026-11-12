@@ -1,5 +1,6 @@
 package com.pequecare.ui.health
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,8 +30,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,12 +46,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pequecare.data.local.entity.MedicalAppointmentEntity
 import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
+import com.pequecare.ui.theme.AmberAccent
+import com.pequecare.ui.theme.AmberContainer
+import com.pequecare.ui.theme.EmeraldContainer
 import com.pequecare.ui.theme.EmeraldSuccess
+import com.pequecare.ui.theme.RoseContainer
 import com.pequecare.ui.theme.RosePrimary
 
 @Composable
@@ -79,44 +88,50 @@ fun HealthScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 12.dp),
+                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Cabecera Informativa
+            // Cabecera Informativa Maternal
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(44.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.MedicalServices,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Control de Salud Pediátrico",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Medicamentos, consultas al pediatra y control de fiebre",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.MedicalServices,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Salud y Cuidado Médico",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Tratamientos, turnos con el pediatra y control de temperatura",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
                         }
                     }
                 }
@@ -125,7 +140,7 @@ fun HealthScreen(
             // SECCIÓN 1: MEDICAMENTOS Y TRATAMIENTOS
             item {
                 SectionHeader(
-                    title = "💊 Tratamientos y Medicamentos (${treatments.size})",
+                    title = "💊 Tratamientos (${treatments.size})",
                     onAddClick = onAddMedicationClick
                 )
             }
@@ -134,7 +149,7 @@ fun HealthScreen(
                 item {
                     EmptySectionCard(
                         title = "Sin tratamientos activos",
-                        description = "Registra medicamentos con dosis, principio activo y frecuencia horaria.",
+                        description = "Registra medicamentos con dosis, principio activo y alarmas de toma.",
                         buttonText = "Añadir Tratamiento",
                         onAddClick = onAddMedicationClick
                     )
@@ -152,9 +167,9 @@ fun HealthScreen(
 
             // SECCIÓN 2: CONSULTAS Y TURNOS MÉDICOS
             item {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 SectionHeader(
-                    title = "🩺 Consultas y Turnos Médicos (${appointments.size})",
+                    title = "🩺 Turnos Médicos (${appointments.size})",
                     onAddClick = onAddAppointmentClick
                 )
             }
@@ -163,7 +178,7 @@ fun HealthScreen(
                 item {
                     EmptySectionCard(
                         title = "Sin consultas agendadas",
-                        description = "Agenda turnos médicos, controles sanos y visitas a especialistas.",
+                        description = "Agenda controles de niño sano y visitas a especialistas con alerta 24h antes.",
                         buttonText = "Agendar Consulta",
                         onAddClick = onAddAppointmentClick
                     )
@@ -181,9 +196,9 @@ fun HealthScreen(
 
             // SECCIÓN 3: FIEBRE Y TEMPERATURA
             item {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 SectionHeader(
-                    title = "🌡️ Registro de Fiebre y Temperatura (${temperatures.size})",
+                    title = "🌡️ Fiebre y Temperatura (${temperatures.size})",
                     onAddClick = onAddTemperatureClick
                 )
             }
@@ -192,8 +207,8 @@ fun HealthScreen(
                 item {
                     EmptySectionCard(
                         title = "Sin registros de temperatura",
-                        description = "Lleva control térmico en °C, síntomas asociados y medicamentos dados.",
-                        buttonText = "Registrar Fiebre",
+                        description = "Lleva el control térmico en °C, síntomas observados y antitérmicos administrados.",
+                        buttonText = "Registrar Temperatura",
                         onAddClick = onAddTemperatureClick
                     )
                 }
@@ -209,7 +224,7 @@ fun HealthScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(28.dp))
             }
         }
     }
@@ -228,10 +243,17 @@ private fun SectionHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
         )
-        IconButton(onClick = onAddClick) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir", tint = RosePrimary)
+        FilledTonalIconButton(
+            onClick = onAddClick,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir")
         }
     }
 }
@@ -245,12 +267,14 @@ private fun EmptySectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -258,16 +282,18 @@ private fun EmptySectionCard(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Button(
                 onClick = onAddClick,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(buttonText, style = MaterialTheme.typography.labelSmall)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(buttonText, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -284,9 +310,10 @@ private fun MedicationCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -298,27 +325,34 @@ private fun MedicationCard(
                     Text(
                         text = "💊 ${med.name}",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (med.formula.isNotBlank()) "Principio Activo: ${med.formula}" else "Tratamiento pediátrico",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (med.formula.isNotBlank()) med.formula else "Tratamiento pediátrico",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val isActive = med.status.uppercase() == "ACTIVO"
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        color = if (isActive) EmeraldContainer else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = if (isActive) "🟢 ACTIVO" else "🏁 CULMINADO",
+                            text = if (isActive) "Activo" else "Culminado",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontWeight = FontWeight.Bold
+                            color = if (isActive) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
                         )
                     }
 
@@ -364,24 +398,24 @@ private fun MedicationCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             val freqDisplay = if (med.frequencyMinutes > 0) {
-                "c/${med.frequencyHours}h ${med.frequencyMinutes}m"
+                "Cada ${med.frequencyHours}h ${med.frequencyMinutes}m"
             } else {
-                "c/${med.frequencyHours} horas"
+                "Cada ${med.frequencyHours} horas"
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                InfoColumn(label = "Dosis", value = med.dosage, modifier = Modifier.weight(1f))
-                InfoColumn(label = "Frecuencia", value = freqDisplay, modifier = Modifier.weight(1.3f))
-                InfoColumn(label = "Duración", value = "${med.durationDays} días", modifier = Modifier.weight(1f))
+                InfoBox(label = "Dosis", value = med.dosage, modifier = Modifier.weight(1f))
+                InfoBox(label = "Frecuencia", value = freqDisplay, modifier = Modifier.weight(1.25f))
+                InfoBox(label = "Duración", value = "${med.durationDays} días", modifier = Modifier.weight(1f))
             }
 
             if (!med.notes.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Nota: ${med.notes}",
+                    text = "📝 ${med.notes}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -402,12 +436,12 @@ private fun AppointmentCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Fila 1: Nombre del doctor (ocupa todo el ancho disponible) y botón de opciones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -422,14 +456,21 @@ private fun AppointmentCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = appt.doctorName.ifBlank { "Médico / Especialista" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column {
+                        Text(
+                            text = appt.doctorName.ifBlank { "Médico / Especialista" },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "📅 ${appt.date}  •  ⏰ ${appt.time} hs",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 Box {
@@ -470,9 +511,8 @@ private fun AppointmentCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Fila 2: Etiquetas de estado y especialidad en su propia fila independiente
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -480,12 +520,12 @@ private fun AppointmentCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isPending) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    color = if (isPending) EmeraldContainer else MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
-                        text = if (isPending) "⏳ PENDIENTE" else "✔️ PASADO",
+                        text = if (isPending) "⏳ Pendiente" else "✔️ Realizado",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isPending) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isPending) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontWeight = FontWeight.Bold
                     )
@@ -497,7 +537,7 @@ private fun AppointmentCard(
                 ) {
                     Text(
                         text = appt.specialty.ifBlank { "Pediatría" },
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontWeight = FontWeight.SemiBold,
@@ -507,41 +547,20 @@ private fun AppointmentCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Fila 3: Fecha y hora en una tarjeta/pill estilizada
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "📅 ${appt.date}   •   ⏰ ${appt.time} hs",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Fila 4: Lugar / Clínica y Motivo en dos columnas limpias
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                InfoColumn(
-                    label = "Lugar / Clínica",
+                InfoBox(
+                    label = "Centro Médico",
                     value = appt.clinic.ifBlank { "Consultorio" },
                     modifier = Modifier.weight(1f)
                 )
-                InfoColumn(
+                InfoBox(
                     label = "Motivo",
-                    value = appt.reason.ifBlank { "Control" },
+                    value = appt.reason.ifBlank { "Control sano" },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -549,7 +568,7 @@ private fun AppointmentCard(
             if (!appt.notes.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "📝 Nota: ${appt.notes}",
+                    text = "📝 ${appt.notes}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -570,28 +589,29 @@ private fun TemperatureCard(
     val isMildFever = temp.celsius >= 37.5 && temp.celsius < 38.0
 
     val badgeColor = when {
-        isFever -> RosePrimary.copy(alpha = 0.2f)
-        isMildFever -> Color(0xFFFBBF24).copy(alpha = 0.2f)
-        else -> EmeraldSuccess.copy(alpha = 0.2f)
+        isFever -> RoseContainer
+        isMildFever -> AmberContainer
+        else -> EmeraldContainer
     }
 
     val badgeTextColor = when {
         isFever -> RosePrimary
-        isMildFever -> Color(0xFFB45309)
+        isMildFever -> AmberAccent
         else -> EmeraldSuccess
     }
 
     val statusText = when {
-        isFever -> "Fiebre (Alta)"
+        isFever -> "Fiebre"
         isMildFever -> "Febrícula"
-        else -> "Temperatura Normal"
+        else -> "Normal"
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -603,12 +623,12 @@ private fun TemperatureCard(
                     Text(
                         text = "🌡️ ${temp.celsius} °C",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.ExtraBold,
                         color = if (isFever) RosePrimary else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "📅 ${temp.date} • ⏰ ${temp.time} hs",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "📅 ${temp.date}  •  ⏰ ${temp.time} hs",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -620,9 +640,9 @@ private fun TemperatureCard(
                     ) {
                         Text(
                             text = statusText,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = badgeTextColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -672,14 +692,22 @@ private fun TemperatureCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                InfoColumn(label = "Síntomas", value = temp.symptoms.ifBlank { "Sin síntomas" }, modifier = Modifier.weight(1f))
-                InfoColumn(label = "Antipirético", value = temp.medicationGiven?.ifBlank { "Ninguno" } ?: "Ninguno", modifier = Modifier.weight(1f))
+                InfoBox(
+                    label = "Síntomas",
+                    value = temp.symptoms.ifBlank { "Sin síntomas" },
+                    modifier = Modifier.weight(1f)
+                )
+                InfoBox(
+                    label = "Antitérmico",
+                    value = temp.medicationGiven?.ifBlank { "Ninguno" } ?: "Ninguno",
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             if (!temp.notes.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Nota: ${temp.notes}",
+                    text = "📝 ${temp.notes}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -689,13 +717,33 @@ private fun TemperatureCard(
 }
 
 @Composable
-private fun InfoColumn(
+private fun InfoBox(
     label: String,
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

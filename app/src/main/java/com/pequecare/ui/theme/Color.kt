@@ -3,44 +3,44 @@ package com.pequecare.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ==========================================
-// Paleta Pastel - Material Design 3
+// Paleta Maternal Minimalista - Material Design 3
 // ==========================================
 
-// Rosa Pastel (Color Primario)
-val RosePrimary = Color(0xFFF09BA8)
-val RoseSecondary = Color(0xFFF7BDC6)
-val RoseLight = Color(0xFFFFF3F5)
-val RoseContainer = Color(0xFFFFE0E5)
+// Rosa Maternal Cálido (Color Primario con alto contraste para textos blancos nítidos)
+val RosePrimary = Color(0xFFD86C7E)
+val RoseSecondary = Color(0xFFEFA5B2)
+val RoseLight = Color(0xFFFFF7F8)
+val RoseContainer = Color(0xFFFCE6EA)
 
-// Melocotón / Ámbar Pastel (Acento Secundario)
-val AmberAccent = Color(0xFFF7C398)
-val AmberContainer = Color(0xFFFFF0E3)
+// Melocotón / Ámbar Suave (Acento Cálido)
+val AmberAccent = Color(0xFFD98A4E)
+val AmberContainer = Color(0xFFFFEFE2)
 
-// Menta / Salvia Pastel (Éxito / Salud)
-val EmeraldSuccess = Color(0xFF8DC99D)
-val EmeraldContainer = Color(0xFFE6F6EB)
+// Salvia / Menta Maternal (Éxito / Salud / Bienestar)
+val EmeraldSuccess = Color(0xFF429668)
+val EmeraldContainer = Color(0xFFE4F5EC)
 
-// Azul Cielo / Lavanda Pastel (Hidratación / Rutinas)
-val IndigoPrimary = Color(0xFF90BBE0)
-val IndigoContainer = Color(0xFFE7F2FC)
+// Azul Cielo Sereno (Rutinas / Hidratación)
+val IndigoPrimary = Color(0xFF5A87B8)
+val IndigoContainer = Color(0xFFE6F0FA)
 
-// Lavanda Pastel (Descanso / Sueño)
-val PastelLavender = Color(0xFFCFB5E8)
-val PastelLavenderContainer = Color(0xFFF5EEFB)
+// Lavanda Suave (Descanso / Sueño)
+val PastelLavender = Color(0xFF8C6FB8)
+val PastelLavenderContainer = Color(0xFFF2ECFA)
 
-// Fondos y Superficies - Modo Claro Pastel (Suave para pantallas AMOLED, evita blanco puro cegador)
-val SlateDark = Color(0xFF2C2426)
-val SlateMedium = Color(0xFF6E5F62)
-val SlateLight = Color(0xFFFAF7F5) // Tono cálido pastel tipo lino/crema suave
+// Fondos y Superficies - Modo Claro (Tono lino/crema cálido y suave para la vista)
+val SlateDark = Color(0xFF2B2124)
+val SlateMedium = Color(0xFF6B5B60)
+val SlateLight = Color(0xFFFCF9F7)
 val SurfaceCard = Color(0xFFFFFFFF)
-val SurfaceVariantLight = Color(0xFFF3EBEA)
+val SurfaceVariantLight = Color(0xFFF4ECEE)
 
-// Fondos y Superficies - Modo Oscuro Pastel
-val DarkBackground = Color(0xFF181415)
-val DarkSurface = Color(0xFF231C1E)
-val DarkSurfaceVariant = Color(0xFF362C2F)
-val DarkTextPrimary = Color(0xFFF6ECEB)
-val DarkTextSecondary = Color(0xFFC9B6B9)
-val DarkRosePrimary = Color(0xFFF6B0BC)
-val DarkMint = Color(0xFFA5DCB3)
-val DarkSky = Color(0xFFA9CFF0)
+// Fondos y Superficies - Modo Oscuro Cálido
+val DarkBackground = Color(0xFF161214)
+val DarkSurface = Color(0xFF221C1E)
+val DarkSurfaceVariant = Color(0xFF332A2D)
+val DarkTextPrimary = Color(0xFFF7EFF0)
+val DarkTextSecondary = Color(0xFFCEB8BE)
+val DarkRosePrimary = Color(0xFFF39AA8)
+val DarkMint = Color(0xFF8BD4A8)
+val DarkSky = Color(0xFF9AC5F0)

@@ -86,6 +86,7 @@ import com.pequecare.ui.health.HealthScreen
 import com.pequecare.ui.report.ReportExportComponent
 import com.pequecare.ui.routine.RoutineScreen
 import com.pequecare.ui.settings.SettingsScreen
+import com.pequecare.service.SleepTrackerService
 import com.pequecare.ui.theme.PequeCareTheme
 import com.pequecare.util.CalendarHelper
 import com.pequecare.util.NotificationHelper
@@ -119,6 +120,7 @@ fun PequeCareApp(
     val mealRecords by viewModel.mealRecords.collectAsState()
     val activityRecords by viewModel.activityRecords.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val activeSleepState by SleepTrackerService.sleepState.collectAsState()
 
     val authMode by viewModel.authMode.collectAsState()
     val googleUserEmail by viewModel.googleUserEmail.collectAsState()
@@ -201,11 +203,32 @@ fun PequeCareApp(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            text = "🌸 PequeCare",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "🌸 PequeCare",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (profile != null) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(50)
+                                ) {
+                                    Text(
+                                        text = "${if (profile?.gender == "female") "👧" else "👦"} ${profile?.name}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        maxLines = 1,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
                     },
                     actions = {
                         // Menú de Ajustes
@@ -224,7 +247,8 @@ fun PequeCareApp(
             },
             bottomBar = {
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp
                 ) {
                     NavigationTab.entries.forEach { tab ->
                         NavigationBarItem(
@@ -235,6 +259,7 @@ fun PequeCareApp(
                                 Text(
                                     text = tab.title,
                                     style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -244,12 +269,114 @@ fun PequeCareApp(
                 }
             }
         ) { innerPadding ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                when (selectedTab) {
+                if (activeSleepState.isRunning) {
+                    var bannerElapsedSec by remember {
+                        mutableStateOf(activeSleepState.currentElapsedSeconds())
+                    }
+                    androidx.compose.runtime.LaunchedEffect(
+                        activeSleepState.isRunning,
+                        activeSleepState.isPaused,
+                        activeSleepState.startEpochMs,
+                        activeSleepState.accumulatedSeconds
+                    ) {
+                        bannerElapsedSec = activeSleepState.currentElapsedSeconds()
+                        if (activeSleepState.isRunning && !activeSleepState.isPaused) {
+                            while (true) {
+                                bannerElapsedSec = activeSleepState.currentElapsedSeconds()
+                                kotlinx.coroutines.delay(1000L)
+                            }
+                        }
+                    }
+                    val bh = bannerElapsedSec / 3600
+                    val bm = (bannerElapsedSec % 3600) / 60
+                    val bs = bannerElapsedSec % 60
+                    val bannerTimerText = String.format(java.util.Locale.US, "%02d:%02d:%02d", bh, bm, bs)
+
+                    Surface(
+                        onClick = {
+                            editingSleep = null
+                            activeDialog = "sleep"
+                        },
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (activeSleepState.isPaused) {
+                                        "⏸️ En pausa • $bannerTimerText"
+                                    } else {
+                                        "😴 Durmiendo • $bannerTimerText"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "Inicio ${activeSleepState.startTimeStr} hs • Toca para abrir",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                                    maxLines = 1
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    if (activeSleepState.isPaused) {
+                                        SleepTrackerService.resumeTracking(context)
+                                    } else {
+                                        SleepTrackerService.pauseTracking(context)
+                                    }
+                                }
+                            ) {
+                                Text(
+                                    text = if (activeSleepState.isPaused) "▶ Reanudar" else "⏸ Pausar",
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    val stopped = SleepTrackerService.stopAndClearTracking(context)
+                                    val nowTime = LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                                    viewModel.addSleep(
+                                        startTime = stopped.startTimeStr.ifBlank { nowTime },
+                                        endTime = nowTime,
+                                        type = stopped.type.ifBlank { "siesta" },
+                                        quality = stopped.quality.ifBlank { "tranquilo" },
+                                        date = stopped.startDate.ifBlank { LocalDate.now().toString() },
+                                        notes = stopped.notes.ifBlank { null }
+                                    )
+                                    Toast.makeText(context, "😴 Sueño guardado", Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Text(
+                                    text = "⏹ Guardar",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when (selectedTab) {
                     NavigationTab.RESUMEN -> DashboardScreen(
                         profile = profile,
                         allProfiles = allProfiles,
@@ -412,6 +539,7 @@ fun PequeCareApp(
                         allTemperatures = temperatures,
                         allTreatments = activeMedications
                     )
+                }
                 }
             }
         }
@@ -730,6 +858,8 @@ fun PequeCareApp(
             "sleep" -> {
                 AddSleepDialog(
                     initialRecord = editingSleep,
+                    childId = profile?.id ?: "",
+                    childName = profile?.name ?: "",
                     onDismissRequest = {
                         editingSleep = null
                         activeDialog = null

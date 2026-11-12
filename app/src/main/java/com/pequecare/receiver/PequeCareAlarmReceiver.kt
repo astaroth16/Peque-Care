@@ -23,6 +23,11 @@ class PequeCareAlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            com.pequecare.service.SleepTrackerService.ensureServiceRunningIfActive(context)
+            return
+        }
+
         val type = intent.getStringExtra(EXTRA_TYPE) ?: return
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "PequeCare"
         val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "Recordatorio"

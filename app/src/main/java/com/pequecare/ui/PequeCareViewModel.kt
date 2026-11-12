@@ -13,13 +13,13 @@ import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.SleepEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
 import com.pequecare.util.WhoGrowthStandards
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -30,6 +30,12 @@ import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PequeCareViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+        private val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        private const val KEY_AR_STANDARDS_MIGRATED = "ar_standards_v1_applied"
+    }
 
     private val db = PequeCareDatabase.getDatabase(application)
     private val childProfileDao = db.childProfileDao()
@@ -186,7 +192,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
             val res = repo.uploadDatabaseBackup(account, activeDb)
             _isBackupLoading.value = false
             if (res.isSuccess) {
-                val nowStr = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                val nowStr = java.time.LocalDateTime.now().format(DATE_TIME_FORMATTER)
                 _lastBackupDate.value = nowStr
                 prefs.edit().putString("last_drive_backup_date", nowStr).apply()
                 _backupStateMessage.value = "Copia familiar guardada con éxito"
@@ -208,7 +214,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
             val res = repo.uploadChildBackup(account, activeDb, child)
             _isBackupLoading.value = false
             if (res.isSuccess) {
-                val nowStr = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                val nowStr = java.time.LocalDateTime.now().format(DATE_TIME_FORMATTER)
                 _lastBackupDate.value = nowStr
                 prefs.edit().putString("last_drive_backup_date", nowStr).apply()
                 _backupStateMessage.value = "Ficha de ${child.name} respaldada con éxito"
@@ -551,8 +557,9 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun recalculateGrowthRecordsWithArgentinaStandards() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+    private fun recalculateGrowthRecordsWithArgentinaStandards(force: Boolean = false) {
+        if (!force && prefs.getBoolean(KEY_AR_STANDARDS_MIGRATED, false)) return
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val profiles = childProfileDao.getAllChildProfilesOnce().associateBy { it.id }
                 val allGrowth = growthRecordDao.getAllRecordsOnce()
@@ -604,6 +611,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
                         updatedCount++
                     }
                 }
+                prefs.edit().putBoolean(KEY_AR_STANDARDS_MIGRATED, true).apply()
                 android.util.Log.d("PequeCare", "Estandares oficiales de Argentina aplicados. Actualizados: $updatedCount, Eliminados por conflicto: $deletedCount")
             } catch (e: Exception) {
                 android.util.Log.e("PequeCare", "Error recalculando registros de crecimiento con estándares de Argentina", e)
@@ -716,9 +724,9 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         medicationGiven: String? = null,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val profile = childProfile.value ?: return@launch
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val temp = TemperatureRecordEntity(
                 id = UUID.randomUUID().toString(),
                 childId = profile.id,
@@ -740,7 +748,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         medicationGiven: String? = null,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val updated = record.copy(
                 celsius = celsius,
                 symptoms = symptoms.trim(),
@@ -752,8 +760,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun duplicateTemperature(record: TemperatureRecordEntity) {
-        viewModelScope.launch {
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        viewModelScope.launch(Dispatchers.IO) {
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val duplicated = record.copy(
                 id = UUID.randomUUID().toString(),
                 date = LocalDate.now().toString(),
@@ -920,9 +928,9 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         appetite: String,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val profile = childProfile.value ?: return@launch
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val meal = MealEntity(
                 id = UUID.randomUUID().toString(),
                 childId = profile.id,
@@ -945,7 +953,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         appetite: String,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val updated = record.copy(
                 mealType = mealType,
                 foods = foods.trim(),
@@ -957,8 +965,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun duplicateMeal(record: MealEntity) {
-        viewModelScope.launch {
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        viewModelScope.launch(Dispatchers.IO) {
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val duplicated = record.copy(
                 id = UUID.randomUUID().toString(),
                 date = LocalDate.now().toString(),
@@ -970,7 +978,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun deleteMeal(record: MealEntity) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             mealDao.delete(record)
         }
     }
@@ -982,9 +990,9 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         durationMinutes: Int,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val profile = childProfile.value ?: return@launch
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val act = ActivityEntity(
                 id = UUID.randomUUID().toString(),
                 childId = profile.id,
@@ -1006,7 +1014,7 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
         durationMinutes: Int,
         notes: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val updated = record.copy(
                 title = title.trim(),
                 category = category,
@@ -1018,8 +1026,8 @@ class PequeCareViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun duplicateActivity(record: ActivityEntity) {
-        viewModelScope.launch {
-            val nowTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        viewModelScope.launch(Dispatchers.IO) {
+            val nowTime = LocalTime.now().format(TIME_FORMATTER)
             val duplicated = record.copy(
                 id = UUID.randomUUID().toString(),
                 date = LocalDate.now().toString(),

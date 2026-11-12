@@ -1,8 +1,8 @@
 package com.pequecare.ui.growth
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,9 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Straighten
@@ -36,7 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,12 +53,12 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.pequecare.data.local.entity.GrowthRecordEntity
 import com.pequecare.util.WhoGrowthStandards
 import kotlin.math.max
-import kotlin.math.min
 
 enum class ChartMetric {
     PESO,
@@ -88,160 +84,146 @@ fun GrowthScreen(
     ) {
         val isWideScreen = this.maxWidth > 600.dp
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Cabecera informativa y botón de añadir
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Cabecera informativa maternal y botón principal de registro
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Straighten,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Desarrollo y Crecimiento",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Estándares oficiales SAP / Ministerio de Salud",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onAddRecordClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Registrar Peso y Estatura",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Gráfica de curvatura de crecimiento
+            item {
+                GrowthCurveCard(
+                    records = growthRecords,
+                    childGender = childGender,
+                    selectedMetric = selectedMetric,
+                    onMetricChanged = { selectedMetric = it }
+                )
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Historial de Controles (${growthRecords.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Opciones en ⋮",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (growthRecords.isEmpty()) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Straighten,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Column {
-                                    Text(
-                                        text = "Curvas de Crecimiento",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Seguimiento de peso, estatura y percentiles de referencia",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = onAddRecordClick,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "➕ Registrar Peso, Tamaño y Fecha",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = "📏 Sin controles registrados",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Añade el primer control con el peso en kilogramos y la talla en centímetros para visualizar la curva y los percentiles de tu bebé.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
-
-                // Gráfica de curvatura de crecimiento OMS
-                item {
-                    GrowthCurveCard(
-                        records = growthRecords,
-                        childGender = childGender,
-                        selectedMetric = selectedMetric,
-                        onMetricChanged = { selectedMetric = it }
+            } else {
+                items(growthRecords, key = { it.id }) { record ->
+                    GrowthRecordCard(
+                        record = record,
+                        onEdit = { onEditRecordClick(record) },
+                        onDuplicate = { onDuplicateRecordClick(record) },
+                        onDelete = { onDeleteRecordClick(record) }
                     )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Historial de Mediciones (${growthRecords.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Acciones en ⋮",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (growthRecords.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(
-                                    text = "📏 Sin controles de crecimiento aún",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Añade el primer registro con el peso en kilogramos, tamaño en centímetros y la fecha de la medición para calcular los percentiles y trazar la gráfica de crecimiento.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Button(
-                                    onClick = onAddRecordClick,
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Añadir Primer Registro", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    items(growthRecords, key = { it.id }) { record ->
-                        GrowthRecordCard(
-                            record = record,
-                            onEdit = { onEditRecordClick(record) },
-                            onDuplicate = { onDuplicateRecordClick(record) },
-                            onDelete = { onDeleteRecordClick(record) }
-                        )
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(72.dp))
                 }
             }
 
-            // FAB Flotante
-            ExtendedFloatingActionButton(
-                onClick = onAddRecordClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(20.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Añadir Control")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Nuevo Control", fontWeight = FontWeight.SemiBold)
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -258,12 +240,13 @@ fun GrowthCurveCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -277,13 +260,12 @@ fun GrowthCurveCard(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Curvas de Crecimiento",
+                    text = "Curva Percentilar",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            // Pestañas responsivas destacadas para cambiar entre Curva de Peso y Curva de Estatura
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -291,36 +273,52 @@ fun GrowthCurveCard(
                 FilterChip(
                     selected = selectedMetric == ChartMetric.PESO,
                     onClick = { onMetricChanged(ChartMetric.PESO) },
-                    label = { Text("Curva de Peso (kg)", fontWeight = if (selectedMetric == ChartMetric.PESO) FontWeight.Bold else FontWeight.Normal) },
+                    label = {
+                        Text(
+                            text = "Peso (kg)",
+                            fontWeight = if (selectedMetric == ChartMetric.PESO) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 FilterChip(
                     selected = selectedMetric == ChartMetric.TALLA,
                     onClick = { onMetricChanged(ChartMetric.TALLA) },
-                    label = { Text("Curva de Estatura (cm)", fontWeight = if (selectedMetric == ChartMetric.TALLA) FontWeight.Bold else FontWeight.Normal) },
+                    label = {
+                        Text(
+                            text = "Estatura (cm)",
+                            fontWeight = if (selectedMetric == ChartMetric.TALLA) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            // Gráfico Canvas
             GrowthCanvasChart(
                 records = records,
                 isMale = isMale,
                 metric = selectedMetric,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(230.dp)
+                    .height(225.dp)
             )
 
-            // Leyenda visual responsiva sin emojis excesivos
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(color = Color(0xFFE11D48), text = "Mediciones")
-                LegendItem(color = Color(0xFF10B981), text = "Mediana (P50)")
-                LegendItem(color = Color(0xFFFBBF24), text = "Rango normal (P3-P97)")
+                LegendItem(color = Color(0xFFD86C7E), text = "Tu peque")
+                LegendItem(color = Color(0xFF429668), text = "Mediana (P50)")
+                LegendItem(color = Color(0xFFE09153), text = "Normal (P3-P97)")
             }
         }
     }
@@ -340,7 +338,8 @@ private fun LegendItem(color: Color, text: String) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }
@@ -360,7 +359,6 @@ fun GrowthCanvasChart(
     val maxAge = max(maxRecordedAge + 3, 24).coerceAtMost(60)
     val minAge = 0
 
-    // Rango Y según métrica
     val (minY, maxY) = when (metric) {
         ChartMetric.PESO -> {
             val maxWeight = sortedRecords.maxOfOrNull { it.weightKg } ?: 12.0
@@ -374,17 +372,17 @@ fun GrowthCanvasChart(
         }
     }
 
-    val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     val textPaintColor = MaterialTheme.colorScheme.onSurfaceVariant.hashCode()
 
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
 
-        val paddingLeft = 60f
-        val paddingRight = 40f
-        val paddingTop = 30f
-        val paddingBottom = 45f
+        val paddingLeft = 68f
+        val paddingRight = 32f
+        val paddingTop = 28f
+        val paddingBottom = 42f
 
         val graphWidth = width - paddingLeft - paddingRight
         val graphHeight = height - paddingTop - paddingBottom
@@ -399,7 +397,6 @@ fun GrowthCanvasChart(
             return paddingTop + (1f - ratio) * graphHeight
         }
 
-        // 1. Líneas de cuadrícula horizontal
         val ySteps = 4
         for (i in 0..ySteps) {
             val yVal = minY + (maxY - minY) * (i.toDouble() / ySteps)
@@ -412,24 +409,22 @@ fun GrowthCanvasChart(
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
             )
 
-            // Texto eje Y
             val label = when (metric) {
                 ChartMetric.PESO -> String.format("%.0fkg", yVal)
                 ChartMetric.TALLA -> String.format("%.0fcm", yVal)
             }
             drawContext.canvas.nativeCanvas.drawText(
                 label,
-                8f,
-                yPos + 8f,
+                6f,
+                yPos + 7f,
                 android.graphics.Paint().apply {
                     color = textPaintColor
-                    textSize = 24f
+                    textSize = 22f
                     isAntiAlias = true
                 }
             )
         }
 
-        // 2. Líneas de cuadrícula vertical (Meses)
         val ageStep = if (maxAge > 36) 12 else 6
         for (m in minAge..maxAge step ageStep) {
             val xPos = getX(m.toFloat())
@@ -443,16 +438,15 @@ fun GrowthCanvasChart(
             drawContext.canvas.nativeCanvas.drawText(
                 "${m}m",
                 xPos - 14f,
-                height - 12f,
+                height - 10f,
                 android.graphics.Paint().apply {
                     color = textPaintColor
-                    textSize = 24f
+                    textSize = 22f
                     isAntiAlias = true
                 }
             )
         }
 
-        // 3. Área y curvas OMS (P3, P50, P97)
         val p3Path = Path()
         val p50Path = Path()
         val p97Path = Path()
@@ -485,7 +479,6 @@ fun GrowthCanvasChart(
             }
         }
 
-        // Cerrar el corridor para rellenar entre P97 y P3
         for (m in maxAge downTo minAge) {
             val (p3, _, _) = when (metric) {
                 ChartMetric.PESO -> WhoGrowthStandards.getWeightPercentiles(m, isMale)
@@ -495,32 +488,28 @@ fun GrowthCanvasChart(
         }
         corridorPath.close()
 
-        // Rellenar corredor P3-P97 OMS
         drawPath(
             path = corridorPath,
-            color = Color(0xFFFDE68A).copy(alpha = 0.35f)
+            color = Color(0xFFFDE68A).copy(alpha = 0.28f)
         )
 
-        // Líneas límite OMS P3 y P97
         drawPath(
             path = p3Path,
-            color = Color(0xFFF59E0B).copy(alpha = 0.6f),
+            color = Color(0xFFE09153).copy(alpha = 0.65f),
             style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f))
         )
         drawPath(
             path = p97Path,
-            color = Color(0xFFF59E0B).copy(alpha = 0.6f),
+            color = Color(0xFFE09153).copy(alpha = 0.65f),
             style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f))
         )
 
-        // Mediana OMS P50
         drawPath(
             path = p50Path,
-            color = Color(0xFF10B981),
-            style = Stroke(width = 3.5f)
+            color = Color(0xFF429668),
+            style = Stroke(width = 3.2f)
         )
 
-        // 4. Curva y Puntos Reales del Niño
         if (sortedRecords.isNotEmpty()) {
             val childPath = Path()
             val points = mutableListOf<Offset>()
@@ -534,7 +523,7 @@ fun GrowthCanvasChart(
                 val pt = Offset(getX(record.ageMonths.toFloat()), getY(valToDraw))
                 points.add(pt)
                 values.add(when (metric) {
-                    ChartMetric.PESO -> "${record.weightKg}"
+                    ChartMetric.PESO -> String.format(java.util.Locale.US, "%.2f", record.weightKg).trimEnd('0').trimEnd('.')
                     ChartMetric.TALLA -> "${record.heightCm}"
                 })
 
@@ -545,39 +534,38 @@ fun GrowthCanvasChart(
                 }
             }
 
-            // Línea del niño
             drawPath(
                 path = childPath,
-                color = Color(0xFFE11D48),
-                style = Stroke(width = 5f)
+                color = Color(0xFFD86C7E),
+                style = Stroke(width = 4.5f)
             )
 
-            // Puntos y etiquetas
             points.forEachIndexed { i, pt ->
-                // Sombra y punto
                 drawCircle(
                     color = Color.White,
-                    radius = 9f,
+                    radius = 8.5f,
                     center = pt
                 )
                 drawCircle(
-                    color = Color(0xFFE11D48),
-                    radius = 6.5f,
+                    color = Color(0xFFD86C7E),
+                    radius = 6f,
                     center = pt
                 )
 
-                // Etiqueta de valor
-                drawContext.canvas.nativeCanvas.drawText(
-                    values[i],
-                    pt.x - 16f,
-                    pt.y - 14f,
-                    android.graphics.Paint().apply {
-                        color = Color(0xFF9F1239).hashCode()
-                        textSize = 22f
-                        isFakeBoldText = true
-                        isAntiAlias = true
-                    }
-                )
+                // Mostrar etiqueta en el primer y último punto (o puntos espaciados) para evitar solapamientos
+                if (i == 0 || i == points.lastIndex || (points[i].x - points[i - 1].x) > 55f) {
+                    drawContext.canvas.nativeCanvas.drawText(
+                        values[i],
+                        pt.x - 16f,
+                        pt.y - 14f,
+                        android.graphics.Paint().apply {
+                            color = Color(0xFF8C2D3E).hashCode()
+                            textSize = 21f
+                            isFakeBoldText = true
+                            isAntiAlias = true
+                        }
+                    )
+                }
             }
         }
     }
@@ -594,9 +582,10 @@ private fun GrowthRecordCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -604,22 +593,24 @@ private fun GrowthRecordCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "📅 ${record.date}",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "Edad: ${record.ageMonths} meses",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "Edad al control: ${record.ageMonths} meses",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Text(
@@ -627,11 +618,12 @@ private fun GrowthRecordCard(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Menú contextual de 3 puntos
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(
@@ -671,7 +663,7 @@ private fun GrowthRecordCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -692,17 +684,17 @@ private fun GrowthRecordCard(
                 )
                 MetricItem(
                     label = "IMC",
-                    value = "${record.bmi} kg/m²",
+                    value = "${record.bmi}",
                     percentile = "P${record.bmiPercentile} • ${record.bmiStatus}",
-                    modifier = Modifier.weight(1.2f)
+                    modifier = Modifier.weight(1.25f)
                 )
             }
 
             if (!record.notes.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Nota: ${record.notes}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "📝 ${record.notes}",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -712,9 +704,36 @@ private fun GrowthRecordCard(
 
 @Composable
 private fun MetricItem(label: String, value: String, percentile: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(text = percentile, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = percentile,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.pequecare.ui.report
 
-import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,14 +14,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
@@ -36,6 +38,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
@@ -46,10 +49,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pequecare.data.local.entity.ActivityEntity
@@ -61,7 +64,6 @@ import com.pequecare.data.local.entity.MedicationTreatmentEntity
 import com.pequecare.data.local.entity.SleepEntity
 import com.pequecare.data.local.entity.TemperatureRecordEntity
 import com.pequecare.ui.theme.EmeraldSuccess
-import com.pequecare.ui.theme.IndigoPrimary
 import com.pequecare.ui.theme.RosePrimary
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -88,7 +90,6 @@ fun ReportExportComponent(
     var selectedPreset by remember { mutableStateOf("30dias") }
     var showCalendarPicker by remember { mutableStateOf(false) }
 
-    // Rango de fechas seleccionado (calculado según preset o calendario)
     val today = remember { LocalDate.now() }
     var manualStartDate by remember { mutableStateOf(today.minusMonths(1).toString()) }
     var manualEndDate by remember { mutableStateOf(today.toString()) }
@@ -113,7 +114,6 @@ fun ReportExportComponent(
         }
     }
 
-    // Filtrar los datos por el rango de fechas
     val filteredGrowth = remember(startDateStr, endDateStr, allGrowthRecords) {
         allGrowthRecords.filter { it.date >= startDateStr && it.date <= endDateStr }
     }
@@ -133,7 +133,6 @@ fun ReportExportComponent(
         allTemperatures.filter { it.date >= startDateStr && it.date <= endDateStr }
     }
 
-    // Generar el texto formateado
     val reportContent by remember(
         profile, startDateStr, endDateStr,
         filteredGrowth, filteredSleep, filteredMeals,
@@ -168,113 +167,114 @@ fun ReportExportComponent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 12.dp),
+                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Cabecera
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Cabecera Maternal
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             ) {
-                Icon(
-                    imageVector = Icons.Default.Assessment,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.height(32.dp)
-                )
-                Column {
-                    Text(
-                        text = "Generar Informe Pediátrico",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Filtra por período y comparte en PDF o WhatsApp",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Assessment,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Informes para el Pediatra",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Filtra por período y comparte por WhatsApp o PDF",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
 
             // Selector de Período y Calendario
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "📅 Período del Informe: $startDateStr  ➔  $endDateStr",
+                        text = "📅 Período: $startDateStr al $endDateStr",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    // Presets rápidos abreviados para evitar solapamiento
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        FilterChip(
-                            selected = selectedPreset == "7dias" && !showCalendarPicker,
-                            onClick = {
-                                selectedPreset = "7dias"
-                                showCalendarPicker = false
-                                manualStartDate = today.minusDays(7).toString()
-                                manualEndDate = today.toString()
-                            },
-                            label = { Text("7 Días", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = selectedPreset == "30dias" && !showCalendarPicker,
-                            onClick = {
-                                selectedPreset = "30dias"
-                                showCalendarPicker = false
-                                manualStartDate = today.minusMonths(1).toString()
-                                manualEndDate = today.toString()
-                            },
-                            label = { Text("1 Mes", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = selectedPreset == "3meses" && !showCalendarPicker,
-                            onClick = {
-                                selectedPreset = "3meses"
-                                showCalendarPicker = false
-                                manualStartDate = today.minusMonths(3).toString()
-                                manualEndDate = today.toString()
-                            },
-                            label = { Text("3 Meses", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = selectedPreset == "todo" && !showCalendarPicker,
-                            onClick = {
-                                selectedPreset = "todo"
-                                showCalendarPicker = false
-                                manualStartDate = "2020-01-01"
-                                manualEndDate = today.toString()
-                            },
-                            label = { Text("Todo", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), maxLines = 1, softWrap = false) },
-                            modifier = Modifier.weight(1f)
-                        )
+                        listOf(
+                            Triple("7dias", "7 Días", today.minusDays(7)),
+                            Triple("30dias", "1 Mes", today.minusMonths(1)),
+                            Triple("3meses", "3 Meses", today.minusMonths(3)),
+                            Triple("todo", "Todo", LocalDate.of(2020, 1, 1))
+                        ).forEach { (key, label, start) ->
+                            FilterChip(
+                                selected = selectedPreset == key && !showCalendarPicker,
+                                onClick = {
+                                    selectedPreset = key
+                                    showCalendarPicker = false
+                                    manualStartDate = start.toString()
+                                    manualEndDate = today.toString()
+                                },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
 
-                    // Botón para desplegar selector de calendario
                     OutlinedButton(
                         onClick = { showCalendarPicker = !showCalendarPicker },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (showCalendarPicker) "Ocultar Calendario" else "Elegir Rango en Calendario",
+                            text = if (showCalendarPicker) "Ocultar Calendario" else "Elegir Fechas en Calendario",
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -284,7 +284,7 @@ fun ReportExportComponent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(320.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
                         ) {
                             DateRangePicker(
                                 state = dateRangePickerState,
@@ -300,21 +300,21 @@ fun ReportExportComponent(
             // Opciones de Compartir e Imprimir (PDF y WhatsApp)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "🚀 Enviar y Exportar Informe",
+                        text = "📤 Exportar y Compartir",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
-                    // Helper lambda para generar el PDF con estilo personalizado en Arial
                     val generateCustomPdf = {
                         ReportExporter.generateStyledPdf(
                             context = context,
@@ -331,37 +331,34 @@ fun ReportExportComponent(
                         )
                     }
 
-                    // Botón WhatsApp PDF
                     Button(
                         onClick = {
                             val pdfUri = generateCustomPdf()
                             ReportExporter.sharePdfViaWhatsApp(context, pdfUri)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess)
                     ) {
                         Icon(imageVector = Icons.Default.Send, contentDescription = null)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "📲 Enviar PDF por WhatsApp", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Enviar PDF por WhatsApp", fontWeight = FontWeight.Bold)
                     }
 
-                    // Botón WhatsApp Texto (Texto Plano)
                     Button(
                         onClick = {
                             ReportExporter.shareViaWhatsApp(context, reportContent)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess.copy(alpha = 0.85f))
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Icon(imageVector = Icons.Default.TextSnippet, contentDescription = null)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "💬 Enviar Resumen Texto por WhatsApp", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Enviar Resumen Texto por WhatsApp", fontWeight = FontWeight.Bold)
                     }
 
-                    // Botón Email con PDF
-                    Button(
+                    OutlinedButton(
                         onClick = {
                             val pdfUri = generateCustomPdf()
                             ReportExporter.shareViaEmail(
@@ -372,60 +369,66 @@ fun ReportExportComponent(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = RosePrimary)
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "✉️ Enviar por Correo Electrónico (con PDF)", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Enviar por Correo Electrónico (PDF)", fontWeight = FontWeight.SemiBold)
                     }
 
-                    // Botón Selector General
                     OutlinedButton(
                         onClick = {
                             val pdfUri = generateCustomPdf()
                             ReportExporter.shareGeneralFile(context, pdfUri, "application/pdf", "Compartir Reporte Pediátrico")
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = null)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "📤 Más opciones de compartir...", fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Más opciones de compartir...", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            // Vista Previa del Reporte
+            // Vista Previa del Reporte (Estilo Ficha Médica Cálida)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
-                        text = "📄 Vista Previa del Informe Estructurado",
+                        text = "📄 Vista Previa del Resumen",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Box(
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .background(Color(0xFF0F172A), RoundedCornerShape(12.dp))
-                            .verticalScroll(rememberScrollState())
-                            .padding(12.dp)
+                            .height(220.dp)
                     ) {
-                        Text(
-                            text = reportContent,
-                            color = Color(0xFF38BDF8),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 15.sp
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(14.dp)
+                        ) {
+                            Text(
+                                text = reportContent,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 11.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 16.sp
+                            )
+                        }
                     }
                 }
             }
